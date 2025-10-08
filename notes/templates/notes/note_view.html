@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ note.title }} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .note-view-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .note-header {
+        margin-bottom: 30px;
+    }
+    .note-title {
+        color: #2d3748;
+        font-size: 28px;
+        margin-bottom: 10px;
+        word-wrap: break-word;
+    }
+    .note-title .lock-badge {
+        font-size: 20px;
+        margin-right: 10px;
+    }
+    .note-meta {
+        font-size: 14px;
+        color: #718096;
+        margin-bottom: 20px;
+    }
+    .note-content {
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        color: #2d3748;
+    }
+    .note-actions {
+        display: flex;
+        gap: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="note-view-container">
+    <div class="note-header">
+        <h1 class="note-title">
+            {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
+            {{ note.title }}
+        </h1>
+        <div class="note-meta">
+            Created: {{ note.created_at|date:"M d, Y H:i" }}
+            {% if note.updated_at != note.created_at %}
+                | Updated: {{ note.updated_at|date:"M d, Y H:i" }}
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="note-content">
+        {{ note.content }}
+    </div>
+    
+    <div class="note-actions">
+        <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
+        <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
+        <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
+    </div>
+</div>
+{% endblock %}
