@@ -107,7 +107,7 @@
             <div class="note-card {% if note.is_locked %}locked{% endif %}">
                 <h3>
                     {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
-                    {% if note.is_locked %}Locked Note{% else %}{{ note.title }}{% endif %}
+                    {{ note.title }}
                 </h3>
                 {% if note.is_locked %}
                     <p style="color: #718096; font-style: italic;">This note is encrypted. Unlock to view contents.</p>
