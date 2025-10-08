@@ -6,39 +6,57 @@
 <style>
     .confirm-container {
         max-width: 600px;
-        margin: 0 auto;
+        margin: 40px auto;
         text-align: center;
     }
+    
     .confirm-container h2 {
-        color: #2d3748;
-        margin-bottom: 20px;
-        font-size: 24px;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
     }
-    .warning-icon {
-        font-size: 64px;
-        margin-bottom: 20px;
-    }
-    .note-preview {
-        background: #f7fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 20px;
-        margin: 30px 0;
-        text-align: left;
-    }
-    .note-preview h3 {
-        color: #2d3748;
-        margin-bottom: 10px;
-    }
-    .note-preview p {
-        color: #4a5568;
+    
+    .confirm-container p {
+        color: #666;
+        font-size: 15px;
         line-height: 1.6;
     }
+    
+    .warning-icon {
+        font-size: 64px;
+        margin-bottom: 24px;
+        opacity: 0.7;
+    }
+    
+    .note-preview {
+        background: #f8f9fa;
+        border: 1px solid #e8e8e8;
+        border-radius: 12px;
+        padding: 24px;
+        margin: 32px 0;
+        text-align: left;
+    }
+    
+    .note-preview h3 {
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    
+    .note-preview p {
+        color: #666;
+        line-height: 1.6;
+        font-size: 14px;
+    }
+    
     .confirm-actions {
         display: flex;
         gap: 10px;
         justify-content: center;
-        margin-top: 30px;
+        margin-top: 32px;
     }
 </style>
 {% endblock %}
