@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib import messages
 from .models import Note, NoteVersion
+from .forms import CustomUserCreationForm
 
 
 @login_required
@@ -62,9 +62,9 @@ def note_edit(request, pk):
                 note=note,
                 title=note.title,
                 content=note.content,
-                is_locked=note.is_locked
+                is_locked=note.is_locked,
             )
-            
+
             # If the note was locked, we need to re-encrypt with the same password
             if note.is_locked:
                 unlock_password = request.session.get(f"note_{pk}", {}).get("password")
@@ -188,10 +188,10 @@ def note_view(request, pk):
 @login_required
 def note_history(request, pk):
     note = get_object_or_404(Note, pk=pk, user=request.user)
-    
+
     # Get all versions for this note
     versions = NoteVersion.objects.filter(note=note)
-    
+
     # If note is locked, check if we have session data
     if note.is_locked:
         if (
@@ -199,10 +199,10 @@ def note_history(request, pk):
             or "unlocked_content" not in request.session.get(f"note_{pk}", {})
         ):
             return redirect("note_unlock", pk=pk) + "?next=note_history"
-        
+
         # Get the password from session to decrypt old versions
         unlock_password = request.session.get(f"note_{pk}", {}).get("password")
-        
+
         # Decrypt versions that are locked
         decrypted_versions = []
         for version in versions:
@@ -212,39 +212,48 @@ def note_history(request, pk):
                     salt = str(note.user.id).encode().ljust(16, b"0")[:16]
                     key = Note.derive_key(unlock_password, salt)
                     from cryptography.fernet import Fernet
+
                     fernet = Fernet(key)
-                    decrypted_content = fernet.decrypt(version.content.encode()).decode()
-                    decrypted_versions.append({
-                        "pk": version.pk,
-                        "title": version.title,
-                        "content": decrypted_content,
-                        "created_at": version.created_at,
-                        "is_locked": True
-                    })
+                    decrypted_content = fernet.decrypt(
+                        version.content.encode()
+                    ).decode()
+                    decrypted_versions.append(
+                        {
+                            "pk": version.pk,
+                            "title": version.title,
+                            "content": decrypted_content,
+                            "created_at": version.created_at,
+                            "is_locked": True,
+                        }
+                    )
                 except Exception:
                     # If decryption fails, skip this version
                     pass
             else:
-                decrypted_versions.append({
-                    "pk": version.pk,
-                    "title": version.title,
-                    "content": version.content,
-                    "created_at": version.created_at,
-                    "is_locked": False
-                })
+                decrypted_versions.append(
+                    {
+                        "pk": version.pk,
+                        "title": version.title,
+                        "content": version.content,
+                        "created_at": version.created_at,
+                        "is_locked": False,
+                    }
+                )
         versions = decrypted_versions
-    
-    return render(request, "notes/note_history.html", {"note": note, "versions": versions})
+
+    return render(
+        request, "notes/note_history.html", {"note": note, "versions": versions}
+    )
 
 
 def register(request):
     if request.method == "POST":
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             messages.success(request, "Registration successful!")
             return redirect("note_list")
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     return render(request, "registration/register.html", {"form": form})

@@ -1,13 +1,26 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
 
+class CustomUser(AbstractUser):
+    """Custom user model extending Django's AbstractUser"""
+
+    # Add any additional fields here
+    bio = models.TextField(max_length=500, blank=True, help_text="Optional bio")
+    birth_date = models.DateField(null=True, blank=True)
+    location = models.CharField(max_length=100, blank=True)
+    website = models.URLField(blank=True)
+
+    def __str__(self):
+        return self.username
+
+
 class Note(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notes")
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
     content = models.TextField()
     is_locked = models.BooleanField(default=False)
@@ -63,6 +76,7 @@ class Note(models.Model):
 
 class NoteVersion(models.Model):
     """Stores historical versions of notes"""
+
     note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name="versions")
     title = models.CharField(max_length=200)
     content = models.TextField()
