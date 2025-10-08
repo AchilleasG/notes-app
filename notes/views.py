@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib import messages
-from .models import Note
+from .models import Note, NoteVersion
 
 
 @login_required
@@ -57,6 +57,14 @@ def note_edit(request, pk):
         content = request.POST.get("content")
 
         if title and content:
+            # Save current version to history before updating
+            NoteVersion.objects.create(
+                note=note,
+                title=note.title,
+                content=note.content,
+                is_locked=note.is_locked
+            )
+            
             # If the note was locked, we need to re-encrypt with the same password
             if note.is_locked:
                 unlock_password = request.session.get(f"note_{pk}", {}).get("password")
@@ -175,6 +183,58 @@ def note_view(request, pk):
         note_data = note
 
     return render(request, "notes/note_view.html", {"note": note_data})
+
+
+@login_required
+def note_history(request, pk):
+    note = get_object_or_404(Note, pk=pk, user=request.user)
+    
+    # Get all versions for this note
+    versions = NoteVersion.objects.filter(note=note)
+    
+    # If note is locked, check if we have session data
+    if note.is_locked:
+        if (
+            f"note_{pk}" not in request.session
+            or "unlocked_content" not in request.session.get(f"note_{pk}", {})
+        ):
+            return redirect("note_unlock", pk=pk) + "?next=note_history"
+        
+        # Get the password from session to decrypt old versions
+        unlock_password = request.session.get(f"note_{pk}", {}).get("password")
+        
+        # Decrypt versions that are locked
+        decrypted_versions = []
+        for version in versions:
+            if version.is_locked:
+                # Use the same decryption logic
+                try:
+                    salt = str(note.user.id).encode().ljust(16, b"0")[:16]
+                    key = Note.derive_key(unlock_password, salt)
+                    from cryptography.fernet import Fernet
+                    fernet = Fernet(key)
+                    decrypted_content = fernet.decrypt(version.content.encode()).decode()
+                    decrypted_versions.append({
+                        "pk": version.pk,
+                        "title": version.title,
+                        "content": decrypted_content,
+                        "created_at": version.created_at,
+                        "is_locked": True
+                    })
+                except Exception:
+                    # If decryption fails, skip this version
+                    pass
+            else:
+                decrypted_versions.append({
+                    "pk": version.pk,
+                    "title": version.title,
+                    "content": version.content,
+                    "created_at": version.created_at,
+                    "is_locked": False
+                })
+        versions = decrypted_versions
+    
+    return render(request, "notes/note_history.html", {"note": note, "versions": versions})
 
 
 def register(request):

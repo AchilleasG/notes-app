@@ -64,6 +64,7 @@
     
     <div class="note-actions">
         <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
+        <a href="{% url 'note_history' note.pk %}" class="btn btn-success">📜 History</a>
         <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
         <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
     </div>

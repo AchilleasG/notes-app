@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}History - {{ note.title }} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .history-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .history-header {
+        margin-bottom: 30px;
+    }
+    .history-title {
+        color: #2d3748;
+        font-size: 28px;
+        margin-bottom: 10px;
+        word-wrap: break-word;
+    }
+    .history-title .lock-badge {
+        font-size: 20px;
+        margin-right: 10px;
+    }
+    .timeline {
+        position: relative;
+        padding-left: 40px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e2e8f0;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+        background: #f7fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.3s;
+    }
+    .timeline-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -34px;
+        top: 25px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #667eea;
+    }
+    .version-date {
+        font-size: 14px;
+        color: #667eea;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    .version-title {
+        font-size: 18px;
+        color: #2d3748;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    .version-content {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        padding: 15px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        color: #4a5568;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .current-version {
+        border: 2px solid #667eea;
+        background: #eef2ff;
+    }
+    .current-version::before {
+        background: #48bb78;
+        box-shadow: 0 0 0 2px #48bb78;
+    }
+    .current-badge {
+        display: inline-block;
+        background: #48bb78;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-left: 10px;
+    }
+    .empty-history {
+        text-align: center;
+        padding: 60px 20px;
+        color: #718096;
+    }
+    .empty-history-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+    }
+    .back-actions {
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <div class="history-header">
+        <h1 class="history-title">
+            {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
+            History: {{ note.title }}
+        </h1>
+    </div>
+    
+    <div class="back-actions">
+        <a href="{% url 'note_view' note.pk %}" class="btn btn-secondary">← Back to Note</a>
+    </div>
+
+    {% if versions %}
+        <div class="timeline">
+            <!-- Current version -->
+            <div class="timeline-item current-version">
+                <div class="version-date">
+                    {{ note.updated_at|date:"M d, Y H:i" }}
+                    <span class="current-badge">CURRENT VERSION</span>
+                </div>
+                <div class="version-title">{{ note.title }}</div>
+                <div class="version-content">{{ note.content }}</div>
+            </div>
+
+            <!-- Historical versions -->
+            {% for version in versions %}
+            <div class="timeline-item">
+                <div class="version-date">
+                    {{ version.created_at|date:"M d, Y H:i" }}
+                </div>
+                <div class="version-title">
+                    {{ version.title }}
+                    {% if version.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
+                </div>
+                <div class="version-content">{{ version.content }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-history">
+            <div class="empty-history-icon">📜</div>
+            <h3>No version history yet</h3>
+            <p>Version history will appear here after you edit this note.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

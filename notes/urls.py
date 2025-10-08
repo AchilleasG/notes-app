@@ -8,4 +8,5 @@ urlpatterns = [
     path('delete/<int:pk>/', views.note_delete, name='note_delete'),
     path('unlock/<int:pk>/', views.note_unlock, name='note_unlock'),
     path('view/<int:pk>/', views.note_view, name='note_view'),
+    path('history/<int:pk>/', views.note_history, name='note_history'),
 ]
