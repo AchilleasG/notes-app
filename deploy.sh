@@ -113,5 +113,5 @@ else
 fi
 
 print_success "🎉 Deployment completed successfully!"
-print_status "To view logs: docker-compose logs -f"
-print_status "To stop: docker-compose down"
+print_status "To view logs: docker compose logs -f"
+print_status "To stop: docker compose down"
