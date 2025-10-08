@@ -59,3 +59,18 @@ class Note(models.Model):
             return {"title": self.title, "content": decrypted_content}
         except Exception:
             return None
+
+
+class NoteVersion(models.Model):
+    """Stores historical versions of notes"""
+    note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name="versions")
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    is_locked = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.note.title} - {self.created_at}"
