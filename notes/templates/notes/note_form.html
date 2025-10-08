@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{% if note %}Edit Note{% else %}Create Note{% endif %} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .form-container h2 {
+        color: #2d3748;
+        margin-bottom: 30px;
+        font-size: 24px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 5px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .form-group textarea {
+        min-height: 200px;
+        resize: vertical;
+    }
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{% if note %}Edit Note{% else %}Create New Note{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" value="{{ note.title|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label for="content">Content</label>
+            <textarea id="content" name="content" required>{{ note.content|default:'' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">{% if note %}Update Note{% else %}Create Note{% endif %}</button>
+            <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
