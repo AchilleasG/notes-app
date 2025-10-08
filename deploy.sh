@@ -69,8 +69,7 @@ if [ -n "$UNVERSIONED_FILES" ]; then
     echo "$UNVERSIONED_FILES"
 fi
 
-print_status "Discarding all local changes..."
-git reset --hard HEAD
+
 
 print_status "Switching to main branch and updating to latest remote version..."
 git checkout main
