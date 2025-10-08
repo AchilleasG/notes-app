@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-container {
+        max-width: 450px;
+        margin: 0 auto;
+    }
+    .auth-container h2 {
+        color: #2d3748;
+        margin-bottom: 30px;
+        text-align: center;
+        font-size: 24px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 5px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .form-actions {
+        margin-top: 30px;
+    }
+    .form-actions button {
+        width: 100%;
+    }
+    .form-footer {
+        text-align: center;
+        margin-top: 20px;
+        color: #718096;
+    }
+    .form-footer a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    .form-footer a:hover {
+        text-decoration: underline;
+    }
+    .errorlist {
+        list-style: none;
+        background: #fed7d7;
+        color: #742a2a;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    .helptext {
+        font-size: 12px;
+        color: #718096;
+        margin-top: 5px;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h2>Create Your Account</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.errors %}
+            <ul class="errorlist">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <div class="form-group">
+            <label for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+            {% if form.username.help_text %}
+                <span class="helptext">{{ form.username.help_text }}</span>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.password1.id_for_label }}">Password</label>
+            {{ form.password1 }}
+            {% if form.password1.help_text %}
+                <span class="helptext">{{ form.password1.help_text }}</span>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+            {{ form.password2 }}
+            {% if form.password2.help_text %}
+                <span class="helptext">{{ form.password2.help_text }}</span>
+            {% endif %}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">Register</button>
+        </div>
+    </form>
+    <div class="form-footer">
+        Already have an account? <a href="{% url 'login' %}">Login here</a>
+    </div>
+</div>
+{% endblock %}
