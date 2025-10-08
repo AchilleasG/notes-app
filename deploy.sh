@@ -87,32 +87,32 @@ print_status "Current commit:"
 git log --oneline -1
 
 print_status "Rebuilding Docker images..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 print_status "Starting Docker containers..."
-docker-compose up -d
+docker compose up -d
 
 print_status "Waiting for containers to start..."
 sleep 10
 
 # Check if containers are running
-if docker-compose ps | grep -q "Up"; then
+if docker compose ps | grep -q "Up"; then
     print_success "Docker containers are running!"
     
     print_status "Container status:"
-    docker-compose ps
+    docker compose ps
     
     print_status "Application should be available at http://localhost:8001"
     
     # Show logs for a few seconds
     print_status "Recent logs:"
-    timeout 5 docker-compose logs --tail=20 || true
+    timeout 5 docker compose logs --tail=20 || true
     
 else
     print_error "Some containers failed to start!"
-    docker-compose ps
+    docker compose ps
     print_status "Container logs:"
-    docker-compose logs
+    docker compose logs
     exit 1
 fi
 
