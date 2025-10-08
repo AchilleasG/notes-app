@@ -7,7 +7,7 @@ class CustomUserCreationForm(UserCreationForm):
     """Custom user creation form for the CustomUser model"""
 
     email = forms.EmailField(
-        required=True, help_text="Required. Enter a valid email address."
+        required=False, help_text="Optional. Enter a valid email address."
     )
 
     class Meta:
