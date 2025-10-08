@@ -54,6 +54,23 @@
     .note-content li {
         margin-bottom: 4px;
     }
+    /* Task list (checkbox) styling */
+    .note-content .task-list-item {
+        list-style: none;
+        margin-left: -20px;
+        position: relative;
+    }
+    .note-content .task-list-item input[type="checkbox"] {
+        margin-right: 8px;
+        margin-left: 0;
+        position: relative;
+        top: 1px;
+        cursor: pointer;
+    }
+    .note-content .task-list-item input[type="checkbox"]:checked + label {
+        text-decoration: line-through;
+        color: #6a6a6a;
+    }
     .note-content table {
         border-collapse: collapse;
         width: 100%;
@@ -149,4 +166,71 @@
         <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all checkboxes in task lists
+    const checkboxes = document.querySelectorAll('.note-content .task-list-item input[type="checkbox"]');
+    
+    checkboxes.forEach(function(checkbox, index) {
+        checkbox.addEventListener('change', function() {
+            updateCheckboxInNote(index, this.checked);
+        });
+    });
+    
+    function updateCheckboxInNote(checkboxIndex, isChecked) {
+        // Send AJAX request to update the note content
+        fetch('{% url "note_edit" note.pk %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: new URLSearchParams({
+                'title': '{{ note.title|escapejs }}',
+                'content': updateMarkdownCheckbox('{{ note.content|escapejs }}', checkboxIndex, isChecked),
+                'ajax_update': 'true'
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                // Revert checkbox state if save failed
+                const checkbox = document.querySelectorAll('.task-list-item input[type="checkbox"]')[checkboxIndex];
+                checkbox.checked = !isChecked;
+                alert('Failed to save checkbox state');
+            }
+        })
+        .catch(error => {
+            // Revert checkbox state if request failed
+            const checkbox = document.querySelectorAll('.task-list-item input[type="checkbox"]')[checkboxIndex];
+            checkbox.checked = !isChecked;
+            console.error('Error:', error);
+            alert('Failed to save checkbox state');
+        });
+    }
+    
+    function updateMarkdownCheckbox(content, checkboxIndex, isChecked) {
+        const lines = content.split('\\n');
+        let currentCheckboxIndex = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            // Check if this line contains a task list item
+            if (lines[i].match(/^[\s]*-\s*\[[x\s]\]/)) {
+                if (currentCheckboxIndex === checkboxIndex) {
+                    // Update this checkbox
+                    if (isChecked) {
+                        lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[x]');
+                    } else {
+                        lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[ ]');
+                    }
+                    break;
+                }
+                currentCheckboxIndex++;
+            }
+        }
+        
+        return lines.join('\\n');
+    }
+});
+</script>
 {% endblock %}

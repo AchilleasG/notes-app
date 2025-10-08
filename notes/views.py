@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.contrib import messages
+from django.http import JsonResponse
 from .models import Note, NoteVersion
 from .forms import CustomUserCreationForm
 
@@ -36,14 +37,14 @@ def note_create(request):
             if image:
                 import os
                 from django.conf import settings
-                
+
                 # Create media directory if it doesn't exist
-                media_dir = os.path.join(settings.MEDIA_ROOT, 'note_images')
+                media_dir = os.path.join(settings.MEDIA_ROOT, "note_images")
                 os.makedirs(media_dir, exist_ok=True)
-                
+
                 # Save the image
                 image_path = os.path.join(media_dir, image.name)
-                with open(image_path, 'wb+') as destination:
+                with open(image_path, "wb+") as destination:
                     for chunk in image.chunks():
                         destination.write(chunk)
 
@@ -78,14 +79,14 @@ def note_edit(request, pk):
             if image:
                 import os
                 from django.conf import settings
-                
+
                 # Create media directory if it doesn't exist
-                media_dir = os.path.join(settings.MEDIA_ROOT, 'note_images')
+                media_dir = os.path.join(settings.MEDIA_ROOT, "note_images")
                 os.makedirs(media_dir, exist_ok=True)
-                
+
                 # Save the image
                 image_path = os.path.join(media_dir, image.name)
-                with open(image_path, 'wb+') as destination:
+                with open(image_path, "wb+") as destination:
                     for chunk in image.chunks():
                         destination.write(chunk)
 
@@ -118,6 +119,10 @@ def note_edit(request, pk):
             # Clear session data
             if f"note_{pk}" in request.session:
                 del request.session[f"note_{pk}"]
+
+            # Check if this is an AJAX request for checkbox update
+            if request.POST.get("ajax_update") == "true":
+                return JsonResponse({"success": True})
 
             messages.success(request, "Note updated successfully!")
             return redirect("note_list")

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load markdown_extras %}
 
 {% block title %}My Notes - Personal Notebook{% endblock %}
 
@@ -57,6 +58,85 @@
         text-overflow: ellipsis;
         white-space: pre-wrap;
     }
+    .note-preview {
+        color: #4a5568;
+        margin-bottom: 15px;
+        line-height: 1.6;
+        max-height: 100px;
+        overflow: hidden;
+        position: relative;
+    }
+    .note-preview * {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+    }
+    .note-preview h1, .note-preview h2, .note-preview h3, 
+    .note-preview h4, .note-preview h5, .note-preview h6 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-top: 4px;
+        margin-bottom: 6px;
+    }
+    .note-preview h1 { font-size: 18px; }
+    .note-preview h2 { font-size: 17px; }
+    .note-preview h3 { font-size: 16px; }
+    .note-preview code {
+        background: #edf2f7;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-family: 'Courier New', monospace;
+    }
+    .note-preview pre {
+        background: #edf2f7;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        overflow: hidden;
+        color: #2d3748;
+    }
+    .note-preview pre code {
+        background: transparent;
+        padding: 0;
+        font-size: 12px;
+    }
+    .note-preview ul, .note-preview ol {
+        padding-left: 20px;
+        margin-bottom: 8px;
+    }
+    .note-preview li {
+        margin-bottom: 4px;
+    }
+    .note-preview p {
+        margin-bottom: 8px;
+    }
+    .note-preview blockquote {
+        border-left: 3px solid #667eea;
+        padding-left: 12px;
+        margin: 8px 0;
+        color: #4a5568;
+        font-style: italic;
+    }
+    .note-preview a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    .note-preview table {
+        font-size: 12px;
+        border-collapse: collapse;
+        width: 100%;
+        margin: 8px 0;
+    }
+    .note-preview th, .note-preview td {
+        border: 1px solid #cbd5e0;
+        padding: 4px 6px;
+        text-align: left;
+    }
+    .note-preview th {
+        background: #edf2f7;
+        font-weight: 600;
+    }
     .note-meta {
         font-size: 12px;
         color: #718096;
@@ -112,7 +192,7 @@
                 {% if note.is_locked %}
                     <p style="color: #718096; font-style: italic;">This note is encrypted. Unlock to view contents.</p>
                 {% else %}
-                    <p>{{ note.content|truncatewords:30 }}</p>
+                    <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
                 {% endif %}
                 <div class="note-meta">
                     Created: {{ note.created_at|date:"M d, Y" }}
