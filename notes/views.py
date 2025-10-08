@@ -19,6 +19,7 @@ def note_create(request):
         content = request.POST.get("content")
         is_locked = request.POST.get("is_locked") == "on"
         lock_password = request.POST.get("lock_password")
+        image = request.FILES.get("image")
 
         if title and content:
             if is_locked and not lock_password:
@@ -30,6 +31,21 @@ def note_create(request):
                 )
 
             note = Note(user=request.user, title=title, content=content)
+
+            # Handle image upload
+            if image:
+                import os
+                from django.conf import settings
+                
+                # Create media directory if it doesn't exist
+                media_dir = os.path.join(settings.MEDIA_ROOT, 'note_images')
+                os.makedirs(media_dir, exist_ok=True)
+                
+                # Save the image
+                image_path = os.path.join(media_dir, image.name)
+                with open(image_path, 'wb+') as destination:
+                    for chunk in image.chunks():
+                        destination.write(chunk)
 
             if is_locked:
                 note.encrypt_content(lock_password)
@@ -55,8 +71,24 @@ def note_edit(request, pk):
     if request.method == "POST":
         title = request.POST.get("title")
         content = request.POST.get("content")
+        image = request.FILES.get("image")
 
         if title and content:
+            # Handle image upload
+            if image:
+                import os
+                from django.conf import settings
+                
+                # Create media directory if it doesn't exist
+                media_dir = os.path.join(settings.MEDIA_ROOT, 'note_images')
+                os.makedirs(media_dir, exist_ok=True)
+                
+                # Save the image
+                image_path = os.path.join(media_dir, image.name)
+                with open(image_path, 'wb+') as destination:
+                    for chunk in image.chunks():
+                        destination.write(chunk)
+
             # Save current version to history before updating
             NoteVersion.objects.create(
                 note=note,
