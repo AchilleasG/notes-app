@@ -32,11 +32,21 @@
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
     }
+    .note-card.locked {
+        background: #fff5f5;
+        border: 1px solid #feb2b2;
+    }
     .note-card h3 {
         color: #2d3748;
         margin-bottom: 10px;
         font-size: 18px;
         word-wrap: break-word;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .note-card h3 .lock-icon {
+        font-size: 16px;
     }
     .note-card p {
         color: #4a5568;
@@ -94,9 +104,16 @@
 {% if notes %}
     <div class="notes-grid">
         {% for note in notes %}
-            <div class="note-card">
-                <h3>{{ note.title }}</h3>
-                <p>{{ note.content|truncatewords:30 }}</p>
+            <div class="note-card {% if note.is_locked %}locked{% endif %}">
+                <h3>
+                    {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
+                    {% if note.is_locked %}Locked Note{% else %}{{ note.title }}{% endif %}
+                </h3>
+                {% if note.is_locked %}
+                    <p style="color: #718096; font-style: italic;">This note is encrypted. Unlock to view contents.</p>
+                {% else %}
+                    <p>{{ note.content|truncatewords:30 }}</p>
+                {% endif %}
                 <div class="note-meta">
                     Created: {{ note.created_at|date:"M d, Y" }}
                     {% if note.updated_at != note.created_at %}
@@ -104,6 +121,11 @@
                     {% endif %}
                 </div>
                 <div class="note-actions">
+                    {% if note.is_locked %}
+                        <a href="{% url 'note_unlock' note.pk %}?next=note_view" class="btn btn-primary">Unlock & View</a>
+                    {% else %}
+                        <a href="{% url 'note_view' note.pk %}" class="btn btn-primary">View</a>
+                    {% endif %}
                     <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
                     <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
                 </div>

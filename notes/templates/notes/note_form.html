@@ -47,13 +47,25 @@
         gap: 10px;
         margin-top: 30px;
     }
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        color: #2d3748;
+        font-weight: 600;
+    }
+    .checkbox-label input[type="checkbox"] {
+        width: auto;
+        cursor: pointer;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="form-container">
     <h2>{% if note %}Edit Note{% else %}Create New Note{% endif %}</h2>
-    <form method="post">
+    <form method="post" id="noteForm">
         {% csrf_token %}
         <div class="form-group">
             <label for="title">Title</label>
@@ -63,10 +75,32 @@
             <label for="content">Content</label>
             <textarea id="content" name="content" required>{{ note.content|default:'' }}</textarea>
         </div>
+        {% if not note or not note.is_locked %}
+        <div class="form-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="is_locked" name="is_locked" {% if is_locked %}checked{% endif %}>
+                <span>🔒 Lock this note (requires password)</span>
+            </label>
+        </div>
+        <div class="form-group" id="passwordGroup" style="display: {% if is_locked %}block{% else %}none{% endif %};">
+            <label for="lock_password">Lock Password</label>
+            <input type="password" id="lock_password" name="lock_password" placeholder="Enter password to encrypt this note">
+            <small style="color: #718096; display: block; margin-top: 5px;">
+                This password will be used to encrypt your note. You'll need it to unlock and view the note later.
+            </small>
+        </div>
+        {% endif %}
         <div class="form-actions">
             <button type="submit" class="btn btn-success">{% if note %}Update Note{% else %}Create Note{% endif %}</button>
             <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+
+<script>
+    document.getElementById('is_locked').addEventListener('change', function() {
+        document.getElementById('passwordGroup').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('lock_password').required = this.checked;
+    });
+</script>
 {% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Unlock Note - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .unlock-container {
+        max-width: 500px;
+        margin: 0 auto;
+        text-align: center;
+    }
+    .unlock-container h2 {
+        color: #2d3748;
+        margin-bottom: 20px;
+        font-size: 24px;
+    }
+    .lock-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+    }
+    .unlock-description {
+        color: #718096;
+        margin-bottom: 30px;
+        line-height: 1.6;
+    }
+    .form-group {
+        margin-bottom: 20px;
+        text-align: left;
+    }
+    .form-group label {
+        display: block;
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #cbd5e0;
+        border-radius: 5px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    .form-actions button,
+    .form-actions a {
+        flex: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="unlock-container">
+    <div class="lock-icon">🔒</div>
+    <h2>This Note is Locked</h2>
+    <p class="unlock-description">
+        Enter the password you used when creating this note to unlock and view its contents.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter password" required autofocus>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Unlock Note</button>
+            <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
