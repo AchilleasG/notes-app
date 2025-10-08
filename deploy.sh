@@ -50,9 +50,6 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
-print_status "Stopping any running Docker containers..."
-docker-compose down --remove-orphans || print_warning "No containers were running"
-
 print_status "Fetching latest changes from remote..."
 git fetch origin
 
@@ -88,10 +85,6 @@ print_success "Successfully updated to latest main branch"
 # Show current commit info
 print_status "Current commit:"
 git log --oneline -1
-
-print_status "Cleaning up Docker system..."
-# Remove unused containers, networks, images
-docker system prune -f
 
 print_status "Rebuilding Docker images..."
 docker-compose build --no-cache
