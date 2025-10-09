@@ -28,7 +28,7 @@ echo -e "${BLUE}[INFO]${NC} Stopping containers..."
 sudo docker compose down
 
 echo -e "${BLUE}[INFO]${NC} Building containers..."
-sudo docker compose build --no-cache
+sudo docker compose build
 
 echo -e "${BLUE}[INFO]${NC} Starting containers..."
 sudo docker compose up -d
