@@ -243,7 +243,7 @@
                 <button type="button" onclick="insertTable()" title="Table">📊 Table</button>
                 <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt; Code</button>
             </div>
-            <textarea id="content" name="content" class="with-toolbar" required>{{ note.content|default:'' }}</textarea>
+            <textarea id="content" name="content" class="with-toolbar" required>{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
             <div class="file-upload-group">
                 <label for="image">Upload Image (optional):</label>
                 <input type="file" id="image" name="image" accept="image/*">
@@ -417,16 +417,26 @@
         const password = document.getElementById('lock_password');
         const content = document.getElementById('content');
         
-        if (isLocked && isLocked.checked && password && password.value) {
+        // Check if we're editing a locked note (password stored in dataset)
+        const editingLockedNote = content.dataset.notePassword;
+        
+        // Determine if we need to encrypt
+        const needsEncryption = (isLocked && isLocked.checked && password && password.value) || editingLockedNote;
+        
+        if (needsEncryption) {
             e.preventDefault(); // Stop the normal form submission
             
             try {
+                // Use the password from the lock field if locking now, otherwise use cached password for editing
+                const encryptPassword = (password && password.value) ? password.value : editingLockedNote;
+                
                 // Encrypt the content
-                const result = await noteEncryption.encrypt(content.value, password.value);
+                const result = await noteEncryption.encrypt(content.value, encryptPassword);
                 
                 // Create hidden fields for encrypted data
                 let encryptedContentField = document.getElementById('encrypted_content');
                 let saltField = document.getElementById('salt_field');
+                let isLockedField = document.getElementById('is_locked_field');
                 
                 if (!encryptedContentField) {
                     encryptedContentField = document.createElement('input');
@@ -444,6 +454,18 @@
                     this.appendChild(saltField);
                 }
                 
+                if (editingLockedNote && !isLocked) {
+                    // When editing an already locked note, ensure is_locked stays true
+                    if (!isLockedField) {
+                        isLockedField = document.createElement('input');
+                        isLockedField.type = 'hidden';
+                        isLockedField.name = 'is_locked';
+                        isLockedField.id = 'is_locked_field';
+                        isLockedField.value = 'on';
+                        this.appendChild(isLockedField);
+                    }
+                }
+                
                 // Set the encrypted values
                 encryptedContentField.value = result.encrypted;
                 saltField.value = result.salt;
@@ -452,7 +474,9 @@
                 content.value = '';
                 
                 // Clear the password field (don't send password to server)
-                password.value = '';
+                if (password) {
+                    password.value = '';
+                }
                 
                 // Now submit the form
                 this.submit();
@@ -462,5 +486,63 @@
         }
         // If not locked or no password, submit normally
     });
+
+    // Handle editing locked notes - decrypt content on page load
+    {% if note and note.is_locked %}
+    (async function() {
+        const noteData = {
+            id: {{ note.pk }},
+            content: '{{ note.content|escapejs }}',
+            salt: '{{ note.salt|escapejs }}',
+            is_locked: {{ note.is_locked|lower }}
+        };
+
+        // Check if we have a cached password for this note
+        const cachedPassword = noteEncryption.getCachedPassword(noteData.id);
+        
+        if (cachedPassword) {
+            try {
+                const decryptedContent = await noteEncryption.decrypt(
+                    noteData.content,
+                    cachedPassword,
+                    noteData.salt
+                );
+                document.getElementById('content').value = decryptedContent;
+            } catch (error) {
+                console.error('Failed to decrypt with cached password:', error);
+                // Password might have expired or be wrong, prompt for new one
+                promptForPassword();
+            }
+        } else {
+            // No cached password, prompt for it
+            promptForPassword();
+        }
+
+        async function promptForPassword() {
+            const password = prompt('This note is locked. Please enter the password to edit it:');
+            if (password) {
+                try {
+                    const decryptedContent = await noteEncryption.decrypt(
+                        noteData.content,
+                        password,
+                        noteData.salt
+                    );
+                    document.getElementById('content').value = decryptedContent;
+                    // Cache the password for this session
+                    noteEncryption.cachePassword(noteData.id, password);
+                    
+                    // Store the password temporarily for re-encryption
+                    document.getElementById('content').dataset.notePassword = password;
+                } catch (error) {
+                    alert('Decryption failed. Wrong password?');
+                    window.location.href = '{% url "note_view" note.pk %}';
+                }
+            } else {
+                // User cancelled, redirect back to view
+                window.location.href = '{% url "note_view" note.pk %}';
+            }
+        }
+    })();
+    {% endif %}
 </script>
 {% endblock %}
