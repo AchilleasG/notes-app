@@ -46,6 +46,12 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+# Check if docker-compose.yml exists
+if [ ! -f "docker-compose.yml" ]; then
+    print_error "docker-compose.yml not found in current directory!"
+    exit 1
+fi
+
 print_status "Fetching latest changes from remote..."
 git fetch origin
 
@@ -79,13 +85,14 @@ print_success "Successfully updated to latest main branch"
 print_status "Current commit:"
 git log --oneline -1
 
-print_status "Stopping existing containers..."
+# Stop only THIS project's containers (using current directory's docker-compose.yml)
+print_status "Stopping existing containers for this project..."
 sudo docker compose down
 
-print_status "Rebuilding Docker images..."
+print_status "Rebuilding Docker images for this project..."
 sudo docker compose build --no-cache
 
-print_status "Starting Docker containers..."
+print_status "Starting Docker containers for this project..."
 sudo docker compose up -d
 
 print_status "Waiting for containers to start..."
@@ -123,11 +130,11 @@ else
     print_warning "Static files collection failed (non-critical)"
 fi
 
-# Check if containers are running
+# Check if containers are running (only for this project)
 if sudo docker compose ps | grep -q "Up"; then
     print_success "Docker containers are running!"
     
-    print_status "Container status:"
+    print_status "Container status for this project:"
     sudo docker compose ps
     
     print_status "Application should be available at http://localhost:8001"
