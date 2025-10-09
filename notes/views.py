@@ -1,10 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login
 from django.contrib import messages
 from django.http import JsonResponse
 from .models import Note, NoteVersion
-from .forms import CustomUserCreationForm
 
 
 @login_required
@@ -192,16 +190,3 @@ def note_history(request, pk):
     return render(
         request, "notes/note_history.html", {"note": note, "versions": versions}
     )
-
-
-def register(request):
-    if request.method == "POST":
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Registration successful!")
-            return redirect("note_list")
-    else:
-        form = CustomUserCreationForm()
-    return render(request, "registration/register.html", {"form": form})
