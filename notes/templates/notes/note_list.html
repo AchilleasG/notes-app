@@ -8,6 +8,9 @@
     .notes-container {
         max-width: 1200px;
         margin: 0 auto;
+        padding: 0 16px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .header-actions {
@@ -62,6 +65,10 @@
         display: flex;
         flex-direction: column;
         min-height: 200px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
     }
     
     .note-card:hover {
@@ -85,10 +92,19 @@
         font-size: 18px;
         font-weight: 600;
         word-wrap: break-word;
+        word-break: break-word;
+        overflow-wrap: break-word;
         display: flex;
         align-items: flex-start;
         gap: 8px;
         line-height: 1.3;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .note-card h3 span {
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     .note-card h3 .lock-icon {
@@ -106,6 +122,11 @@
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
+        word-wrap: break-word;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        width: 100%;
+        max-width: 100%;
     }
     
     .note-meta {
@@ -114,6 +135,11 @@
         margin-top: auto;
         padding-top: 12px;
         border-top: 1px solid var(--border-secondary);
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     .note-actions {
