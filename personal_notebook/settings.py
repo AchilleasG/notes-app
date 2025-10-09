@@ -157,7 +157,7 @@ SESSION_COOKIE_SECURE = (
 
 # CSRF Settings for reverse proxy
 CSRF_TRUSTED_ORIGINS = [
-    "https://notebook-tc.duckdns.org",  # Replace with your actual domain
+    "https://notebook.animuslabs.tech",  # Replace with your actual domain
     "http://localhost:8000",  # For local development
     "http://127.0.0.1:8000",  # For local development
 ]
