@@ -375,12 +375,13 @@
             );
         }
 
-        async encrypt(text, password) {
+        async encrypt(text, password, existingSalt = null) {
             try {
                 const encoder = new TextEncoder();
                 const data = encoder.encode(text);
                 
-                const salt = this.generateSalt();
+                // Use existing salt if provided, otherwise generate new one
+                const salt = existingSalt ? new Uint8Array(existingSalt.match(/.{2}/g).map(byte => parseInt(byte, 16))) : this.generateSalt();
                 const iv = this.generateIV();
                 const key = await this.deriveKey(password, salt);
 
@@ -393,11 +394,10 @@
                     data
                 );
 
-                // Combine salt + iv + encrypted data
-                const result = new Uint8Array(salt.length + iv.length + encryptedData.byteLength);
-                result.set(salt, 0);
-                result.set(iv, salt.length);
-                result.set(new Uint8Array(encryptedData), salt.length + iv.length);
+                // Combine only iv + encrypted data (salt stored separately)
+                const result = new Uint8Array(iv.length + encryptedData.byteLength);
+                result.set(iv, 0);
+                result.set(new Uint8Array(encryptedData), iv.length);
 
                 return {
                     encrypted: btoa(String.fromCharCode(...result)),
@@ -411,10 +411,39 @@
 
         async decrypt(encryptedText, password, saltHex) {
             try {
+                // Convert base64 back to bytes
                 const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+                
+                // Extract salt from hex (stored separately in database)
                 const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-                const iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
-                const encryptedData = combined.slice(this.saltLength + this.ivLength);
+                
+                // Try to determine the format based on the length
+                let iv, encryptedData;
+                
+                if (combined.length >= this.saltLength + this.ivLength) {
+                    // Check if this might be the old format (salt + iv + data)
+                    // Extract the first saltLength bytes and see if they match our stored salt
+                    const embeddedSalt = combined.slice(0, this.saltLength);
+                    const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                    
+                    if (saltMatches) {
+                        // Old format: salt + iv + encrypted data
+                        console.log('Detected old format with embedded salt');
+                        iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                        encryptedData = combined.slice(this.saltLength + this.ivLength);
+                    } else {
+                        // New format: iv + encrypted data
+                        console.log('Detected new format without embedded salt');
+                        iv = combined.slice(0, this.ivLength);
+                        encryptedData = combined.slice(this.ivLength);
+                    }
+                } else {
+                    // New format: iv + encrypted data
+                    console.log('Detected new format based on length');
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+
                 const key = await this.deriveKey(password, salt);
 
                 const decryptedData = await crypto.subtle.decrypt(
@@ -455,6 +484,7 @@
         
         // Check if we're editing a locked note (password stored in dataset)
         const editingLockedNote = content.dataset.notePassword;
+        const existingSalt = content.dataset.noteSalt;
         
         // Determine if we need to encrypt
         const needsEncryption = (isLocked && isLocked.checked && password && password.value) || editingLockedNote;
@@ -466,8 +496,8 @@
                 // Use the password from the lock field if locking now, otherwise use cached password for editing
                 const encryptPassword = (password && password.value) ? password.value : editingLockedNote;
                 
-                // Encrypt the content
-                const result = await noteEncryption.encrypt(content.value, encryptPassword);
+                // Encrypt the content - reuse existing salt if editing a locked note
+                const result = await noteEncryption.encrypt(content.value, encryptPassword, existingSalt || null);
                 
                 // Create hidden fields for encrypted data
                 let encryptedContentField = document.getElementById('encrypted_content');
@@ -528,8 +558,8 @@
     (async function() {
         const noteData = {
             id: {{ note.pk }},
-            content: '{{ note.content|escapejs }}',
-            salt: '{{ note.salt|escapejs }}',
+            content: '{{ note.content }}',
+            salt: '{{ note.salt }}',
             is_locked: {{ note.is_locked|lower }}
         };
 
@@ -544,6 +574,9 @@
                     noteData.salt
                 );
                 document.getElementById('content').value = decryptedContent;
+                // Store the password and salt for re-encryption
+                document.getElementById('content').dataset.notePassword = cachedPassword;
+                document.getElementById('content').dataset.noteSalt = noteData.salt;
             } catch (error) {
                 console.error('Failed to decrypt with cached password:', error);
                 // Password might have expired or be wrong, prompt for new one
@@ -567,8 +600,9 @@
                     // Cache the password for this session
                     noteEncryption.cachePassword(noteData.id, password);
                     
-                    // Store the password temporarily for re-encryption
+                    // Store the password and salt temporarily for re-encryption
                     document.getElementById('content').dataset.notePassword = password;
+                    document.getElementById('content').dataset.noteSalt = noteData.salt;
                 } catch (error) {
                     alert('Decryption failed. Wrong password?');
                     window.location.href = '{% url "note_view" note.pk %}';

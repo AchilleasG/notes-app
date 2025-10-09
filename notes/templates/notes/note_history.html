@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load markdown_extras %}
 
 {% block title %}History - {{ note.title }} - Personal Notebook{% endblock %}
 
@@ -229,7 +230,7 @@
     
     <div class="back-actions">
         <a href="{% url 'note_view' note.pk %}" class="btn btn-secondary">← Back to Note</a>
-        {% if note.is_locked %}
+        {% if note.is_locked or versions %}
         <button class="btn btn-primary decrypt-button" onclick="showPasswordModal()">🔓 Decrypt History</button>
         {% endif %}
     </div>
@@ -243,11 +244,11 @@
                     <span class="current-badge">CURRENT VERSION</span>
                 </div>
                 <div class="version-title">{{ note.title }}</div>
-                <div class="version-content" id="current-content" data-encrypted="{{ note.content|escapejs }}" data-is-locked="{{ note.is_locked|lower }}" data-salt="{{ note.salt|escapejs }}">
+                <div class="version-content" id="current-content" data-encrypted="{{ note.content }}" data-is-locked="{{ note.is_locked|yesno:'true,false' }}" data-salt="{{ note.salt }}">
                     {% if note.is_locked %}
                         <em>🔒 Encrypted content - click "Decrypt History" to view</em>
                     {% else %}
-                        {{ note.content }}
+                        {{ note.content|markdown }}
                     {% endif %}
                 </div>
             </div>
@@ -262,11 +263,11 @@
                     {{ version.title }}
                     {% if version.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
                 </div>
-                <div class="version-content version-{{ forloop.counter }}" data-encrypted="{{ version.content|escapejs }}" data-is-locked="{{ version.is_locked|lower }}" data-salt="{{ version.salt|escapejs }}">
+                <div class="version-content version-{{ forloop.counter }}" data-encrypted="{{ version.content }}" data-is-locked="{{ version.is_locked|yesno:'true,false' }}" data-salt="{{ version.salt }}">
                     {% if version.is_locked %}
                         <em>🔒 Encrypted content - click "Decrypt History" to view</em>
                     {% else %}
-                        {{ version.content }}
+                        {{ version.content|markdown }}
                     {% endif %}
                 </div>
             </div>
@@ -282,7 +283,6 @@
 </div>
 
 <!-- Password Modal for decryption -->
-{% if note.is_locked or versions|length > 0 %}
 <div id="passwordModal" class="password-modal hidden">
     <div class="password-modal-content">
         <h3>🔒 Enter Password</h3>
@@ -296,6 +296,17 @@
 </div>
 
 <script>
+// Define global functions first
+window.showPasswordModal = function() {
+    document.getElementById('passwordModal').classList.remove('hidden');
+    document.getElementById('passwordInput').focus();
+}
+
+window.hidePasswordModal = function() {
+    document.getElementById('passwordModal').classList.add('hidden');
+    document.getElementById('passwordInput').value = '';
+}
+
 /**
  * Client-side encryption/decryption for note history
  */
@@ -346,10 +357,39 @@ class NoteEncryption {
 
     async decrypt(encryptedText, password, saltHex) {
         try {
+            // Convert base64 back to bytes
             const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+            
+            // Extract salt from hex (stored separately in database)
             const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-            const iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
-            const encryptedData = combined.slice(this.saltLength + this.ivLength);
+            
+            // Try to determine the format based on the length
+            let iv, encryptedData;
+            
+            if (combined.length >= this.saltLength + this.ivLength) {
+                // Check if this might be the old format (salt + iv + data)
+                // Extract the first saltLength bytes and see if they match our stored salt
+                const embeddedSalt = combined.slice(0, this.saltLength);
+                const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                
+                if (saltMatches) {
+                    // Old format: salt + iv + encrypted data
+                    console.log('Detected old format with embedded salt');
+                    iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                    encryptedData = combined.slice(this.saltLength + this.ivLength);
+                } else {
+                    // New format: iv + encrypted data
+                    console.log('Detected new format without embedded salt');
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+            } else {
+                // New format: iv + encrypted data
+                console.log('Detected new format based on length');
+                iv = combined.slice(0, this.ivLength);
+                encryptedData = combined.slice(this.ivLength);
+            }
+
             const key = await this.deriveKey(password, salt);
 
             const decryptedData = await crypto.subtle.decrypt(
@@ -380,21 +420,22 @@ class NoteEncryption {
 
 const noteEncryption = new NoteEncryption();
 
+// Include marked.js for markdown parsing
+if (typeof marked === 'undefined') {
+    console.log('Loading marked.js for history...');
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+    script.onload = function() {
+        console.log('marked.js loaded for history');
+    };
+    document.head.appendChild(script);
+}
+
 // Note data
 const noteData = {
     id: {{ note.pk }},
-    is_locked: {{ note.is_locked|lower }}
+    is_locked: {{ note.is_locked|yesno:"true,false" }}
 };
-
-window.showPasswordModal = function() {
-    document.getElementById('passwordModal').classList.remove('hidden');
-    document.getElementById('passwordInput').focus();
-}
-
-window.hidePasswordModal = function() {
-    document.getElementById('passwordModal').classList.add('hidden');
-    document.getElementById('passwordInput').value = '';
-}
 
 window.decryptHistory = async function() {
     const password = document.getElementById('passwordInput').value;
@@ -405,22 +446,49 @@ window.decryptHistory = async function() {
     }
 
     try {
-        // Decrypt all encrypted content elements
-        const contentElements = document.querySelectorAll('.version-content[data-is-locked="true"]');
+        // Decrypt all version content elements
+        const contentElements = document.querySelectorAll('.version-content');
         let decryptionSuccess = false;
 
-        for (const element of contentElements) {
+        console.log('Found', contentElements.length, 'content elements to check');
+
+        for (let i = 0; i < contentElements.length; i++) {
+            const element = contentElements[i];
+            const isLocked = element.dataset.isLocked;
             const encryptedContent = element.dataset.encrypted;
             const salt = element.dataset.salt;
             
-            if (encryptedContent && salt) {
+            console.log(`Element ${i + 1}:`, {
+                className: element.className,
+                isLocked: isLocked,
+                hasEncrypted: !!encryptedContent,
+                hasSalt: !!salt,
+                contentLength: encryptedContent ? encryptedContent.length : 0,
+                saltLength: salt ? salt.length : 0
+            });
+            
+            // Check if this element is locked and has encrypted content
+            if ((isLocked === "true" || isLocked === true) && encryptedContent && encryptedContent.trim() && salt && salt.trim()) {
+                console.log(`Attempting to decrypt element ${i + 1}...`);
                 try {
+                    console.log('Attempting to decrypt content for element...');
                     const decryptedContent = await noteEncryption.decrypt(encryptedContent, password, salt);
-                    element.innerHTML = '<pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">' + escapeHtml(decryptedContent) + '</pre>';
+                    
+                    // Render as markdown if marked is available, otherwise as plain text
+                    if (typeof marked !== 'undefined') {
+                        element.innerHTML = marked.parse(decryptedContent);
+                    } else {
+                        element.innerHTML = '<pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">' + escapeHtml(decryptedContent) + '</pre>';
+                    }
+                    
                     decryptionSuccess = true;
+                    console.log(`Successfully decrypted element ${i + 1}`);
                 } catch (error) {
-                    console.error('Failed to decrypt version:', error);
+                    console.error(`Failed to decrypt element ${i + 1}:`, error);
+                    // Continue to try other elements even if one fails
                 }
+            } else {
+                console.log(`Skipping element ${i + 1} - isLocked: ${isLocked}, hasContent: ${!!encryptedContent}, hasSalt: ${!!salt}`);
             }
         }
 
@@ -434,6 +502,9 @@ window.decryptHistory = async function() {
             if (decryptButton) {
                 decryptButton.style.display = 'none';
             }
+            
+            // Initialize checkbox handlers for any checkboxes in the decrypted content
+            initializeCheckboxHandlers();
         } else {
             alert('Decryption failed. Wrong password?');
         }
@@ -441,6 +512,22 @@ window.decryptHistory = async function() {
         console.error('Decryption error:', error);
         alert('Decryption failed: ' + error.message);
     }
+}
+
+// Initialize checkbox handlers for task lists in decrypted content
+function initializeCheckboxHandlers() {
+    // Find all checkboxes in task lists within version content
+    const checkboxes = document.querySelectorAll('.version-content .task-list-item input[type="checkbox"]');
+    
+    checkboxes.forEach(function(checkbox, index) {
+        checkbox.removeEventListener('change', handleCheckboxChange); // Remove old listeners
+        checkbox.addEventListener('change', function() {
+            // History is read-only, so just show a message
+            alert('Note: This is a historical version. To edit checkboxes, go back to the current note.');
+            // Revert the checkbox
+            this.checked = !this.checked;
+        });
+    });
 }
 
 // Helper function to escape HTML
@@ -468,6 +555,5 @@ document.getElementById('passwordInput')?.addEventListener('keypress', function(
     }
 });
 </script>
-{% endif %}
 
 {% endblock %}
