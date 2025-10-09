@@ -348,6 +348,102 @@
         color: var(--text-secondary);
         margin-bottom: 16px;
     }
+    
+    /* === SIDEBAR === */
+    .notes-sidebar {
+        position: fixed;
+        top: 0;
+        left: -320px;
+        width: 320px;
+        height: 100vh;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border-primary);
+        box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+        transition: left 0.3s ease;
+        z-index: 9999;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    
+    .notes-sidebar.open {
+        left: 0;
+    }
+    
+    .sidebar-header-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+    }
+    
+    .sidebar-note-link {
+        display: block;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--text-primary);
+        background: var(--bg-tertiary);
+        transition: all 0.2s;
+    }
+    
+    .sidebar-note-link:hover {
+        background: var(--border-primary);
+    }
+    
+    .sidebar-note-link.active {
+        background: var(--accent-primary);
+        color: white;
+    }
+    
+    .sidebar-note-title {
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+    
+    .sidebar-note-date {
+        font-size: 12px;
+        color: var(--text-tertiary);
+    }
+    
+    .sidebar-toggle-btn {
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--accent-primary);
+        color: white;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    
+    .sidebar-toggle-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 9997;
+        display: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
 </style>
 {% endblock %}
 
@@ -408,6 +504,27 @@
         </div>
     </div>
 </div>
+
+<!-- Sidebar -->
+<div class="notes-sidebar" id="notesSidebar">
+    <div class="sidebar-header-title">📚 All Notes</div>
+    {% for n in all_notes %}
+        <a href="{% url 'note_view' n.pk %}" class="sidebar-note-link {% if n.pk == note.pk %}active{% endif %}">
+            <div class="sidebar-note-title">
+                {% if n.is_locked %}🔒 {% endif %}{{ n.title|truncatechars:40 }}
+            </div>
+            <div class="sidebar-note-date">{{ n.updated_at|date:"M d, Y" }}</div>
+        </a>
+    {% endfor %}
+</div>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Toggle Button -->
+<button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
+    ☰
+</button>
 
 <!-- Password Modal -->
 <div id="passwordModal" class="password-modal hidden">
@@ -896,38 +1013,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.head.appendChild(script);
     }
-    
-    const sidebarToggle = document.getElementById('sidebarToggle');
-const sidebar = document.getElementById('sidebar');
-const toggleIcon = document.getElementById('toggleIcon');
-
-if (sidebarToggle && sidebar && toggleIcon) {
-    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    if (sidebarCollapsed) {
-        sidebar.classList.add('collapsed');
-        sidebarToggle.classList.remove('with-sidebar');
-        toggleIcon.textContent = '☰';
-    } else {
-        sidebarToggle.classList.add('with-sidebar');
-        toggleIcon.textContent = '✕';
-    }
-
-    sidebarToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-        const isCollapsed = sidebar.classList.contains('collapsed');
-
-        if (isCollapsed) {
-            sidebarToggle.classList.remove('with-sidebar');
-            toggleIcon.textContent = '☰';
-        } else {
-            sidebarToggle.classList.add('with-sidebar');
-            toggleIcon.textContent = '✕';
-        }
-
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
-    });
-}
-
 
     // Initialize checkbox handlers if note is not locked or auto-decrypt if password is cached
     if (!noteData.isLocked) {
@@ -935,11 +1020,6 @@ if (sidebarToggle && sidebar && toggleIcon) {
         // Add a small delay to ensure DOM is fully rendered
         setTimeout(() => {
             initializeCheckboxHandlers();
-            // Debug: log the actual DOM structure
-            const noteContent = document.getElementById('noteContent');
-            console.log('Note content HTML:', noteContent.innerHTML);
-            console.log('Task list items found:', document.querySelectorAll('#noteContent .task-list-item').length);
-            console.log('Checkboxes found:', document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]').length);
         }, 100);
     } else {
         console.log('Note is locked, checking for cached password');
@@ -962,6 +1042,39 @@ if (sidebarToggle && sidebar && toggleIcon) {
             }
         });
     }
+    
+    // === SIDEBAR FUNCTIONALITY ===
+    const sidebar = document.getElementById('notesSidebar');
+    const sidebarToggle = document.getElementById('sidebarToggleBtn');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('active');
+        sidebarToggle.textContent = '✕';
+    }
+    
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+        sidebarToggle.textContent = '☰';
+    }
+    
+    sidebarToggle.addEventListener('click', function() {
+        if (sidebar.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+    
+    sidebarOverlay.addEventListener('click', closeSidebar);
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            closeSidebar();
+        }
+    });
 });
 
 console.log('Script loaded, functions defined');
