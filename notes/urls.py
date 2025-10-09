@@ -10,4 +10,5 @@ urlpatterns = [
     path("note/<int:pk>/", views.note_view, name="note_detail"),
     path("history/<int:pk>/", views.note_history, name="note_history"),
     path("render-markdown/", views.render_markdown, name="render_markdown"),
+    path("profile/", views.profile, name="profile"),
 ]

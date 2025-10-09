@@ -539,6 +539,7 @@
                 </div>
                 {% if user.is_authenticated %}
                     <span>Welcome, <strong>{{ user.username }}</strong></span>
+                    <a href="{% url 'profile' %}" class="btn btn-white">Profile</a>
                     <form method="post" action="{% url 'logout' %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-white">Logout</button>

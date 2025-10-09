@@ -2,7 +2,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.contrib.auth import update_session_auth_hash
 from .models import Note, NoteVersion
+from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 
 
 @login_required
@@ -207,3 +209,35 @@ def render_markdown(request):
     from django.http import HttpResponseNotAllowed
 
     return HttpResponseNotAllowed(["POST"])
+
+
+@login_required
+def profile(request):
+    """User profile page with password change functionality"""
+    password_form = CustomPasswordChangeForm(user=request.user)
+    profile_form = CustomUserChangeForm(instance=request.user)
+
+    if request.method == "POST":
+        if "change_password" in request.POST:
+            password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)  # Keep user logged in
+                messages.success(request, "Your password was successfully updated!")
+                return redirect("profile")
+            else:
+                messages.error(request, "Please correct the errors below.")
+        elif "update_profile" in request.POST:
+            profile_form = CustomUserChangeForm(request.POST, instance=request.user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Your profile was successfully updated!")
+                return redirect("profile")
+            else:
+                messages.error(request, "Please correct the errors below.")
+
+    return render(
+        request,
+        "notes/profile.html",
+        {"password_form": password_form, "profile_form": profile_form},
+    )
