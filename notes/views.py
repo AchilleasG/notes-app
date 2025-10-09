@@ -81,15 +81,18 @@ def note_create(request):
                         tag_color = tag_data.get('color', '#3b82f6')
                         if tag_name:
                             # Get or create tag (case-insensitive)
-                            tag, created = Tag.objects.get_or_create(
-                                user=request.user,
-                                name__iexact=tag_name,
-                                defaults={'name': tag_name, 'color': tag_color}
-                            )
-                            # Update color if tag exists but color changed
-                            if not created and tag.color != tag_color:
-                                tag.color = tag_color
-                                tag.save()
+                            try:
+                                tag = Tag.objects.get(user=request.user, name__iexact=tag_name)
+                                # Update color if changed
+                                if tag.color != tag_color:
+                                    tag.color = tag_color
+                                    tag.save()
+                            except Tag.DoesNotExist:
+                                tag = Tag.objects.create(
+                                    user=request.user,
+                                    name=tag_name,
+                                    color=tag_color
+                                )
                             note.tags.add(tag)
                 except (json.JSONDecodeError, ValueError):
                     pass
@@ -163,15 +166,18 @@ def note_edit(request, pk):
                         tag_color = tag_data.get('color', '#3b82f6')
                         if tag_name:
                             # Get or create tag (case-insensitive)
-                            tag, created = Tag.objects.get_or_create(
-                                user=request.user,
-                                name__iexact=tag_name,
-                                defaults={'name': tag_name, 'color': tag_color}
-                            )
-                            # Update color if tag exists but color changed
-                            if not created and tag.color != tag_color:
-                                tag.color = tag_color
-                                tag.save()
+                            try:
+                                tag = Tag.objects.get(user=request.user, name__iexact=tag_name)
+                                # Update color if changed
+                                if tag.color != tag_color:
+                                    tag.color = tag_color
+                                    tag.save()
+                            except Tag.DoesNotExist:
+                                tag = Tag.objects.create(
+                                    user=request.user,
+                                    name=tag_name,
+                                    color=tag_color
+                                )
                             note.tags.add(tag)
                 except (json.JSONDecodeError, ValueError):
                     pass
