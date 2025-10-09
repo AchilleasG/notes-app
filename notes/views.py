@@ -190,3 +190,20 @@ def note_history(request, pk):
     return render(
         request, "notes/note_history.html", {"note": note, "versions": versions}
     )
+
+
+@login_required
+def render_markdown(request):
+    """Render markdown content using the same filter as server-side rendering"""
+    if request.method == "POST":
+        from .templatetags.markdown_extras import markdown_format
+        from django.http import HttpResponse
+
+        content = request.POST.get("content", "")
+        rendered_html = markdown_format(content)
+
+        return HttpResponse(rendered_html, content_type="text/html")
+
+    from django.http import HttpResponseNotAllowed
+
+    return HttpResponseNotAllowed(["POST"])

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load markdown_extras %}
 
 {% block title %}History - {{ note.title }} - Personal Notebook{% endblock %}
 
@@ -148,6 +149,73 @@
     .back-actions {
         margin-bottom: 32px;
     }
+
+    /* Password modal styles */
+    .password-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+
+    .password-modal.hidden {
+        display: none;
+    }
+
+    .password-modal-content {
+        background: var(--bg-primary);
+        padding: 32px;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+        width: 90%;
+    }
+
+    .password-modal-content h3 {
+        color: var(--text-primary);
+        margin: 0 0 12px 0;
+        font-size: 24px;
+    }
+
+    .password-modal-content p {
+        color: var(--text-secondary);
+        margin: 0 0 20px 0;
+        font-size: 14px;
+    }
+
+    .password-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 15px;
+        margin-bottom: 20px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+
+    .password-input:focus {
+        outline: none;
+        border-color: var(--btn-primary-bg);
+        box-shadow: 0 0 0 3px var(--shadow-sm);
+    }
+
+    .password-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .decrypt-button {
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
 
@@ -162,6 +230,9 @@
     
     <div class="back-actions">
         <a href="{% url 'note_view' note.pk %}" class="btn btn-secondary">← Back to Note</a>
+        {% if note.is_locked or versions %}
+        <button class="btn btn-primary decrypt-button" onclick="showPasswordModal()">🔓 Decrypt History</button>
+        {% endif %}
     </div>
 
     {% if versions %}
@@ -173,7 +244,13 @@
                     <span class="current-badge">CURRENT VERSION</span>
                 </div>
                 <div class="version-title">{{ note.title }}</div>
-                <div class="version-content">{{ note.content }}</div>
+                <div class="version-content" id="current-content" data-encrypted="{{ note.content }}" data-is-locked="{{ note.is_locked|yesno:'true,false' }}" data-salt="{{ note.salt }}">
+                    {% if note.is_locked %}
+                        <em>🔒 Encrypted content - click "Decrypt History" to view</em>
+                    {% else %}
+                        {{ note.content|markdown }}
+                    {% endif %}
+                </div>
             </div>
 
             <!-- Historical versions -->
@@ -186,7 +263,13 @@
                     {{ version.title }}
                     {% if version.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
                 </div>
-                <div class="version-content">{{ version.content }}</div>
+                <div class="version-content version-{{ forloop.counter }}" data-encrypted="{{ version.content }}" data-is-locked="{{ version.is_locked|yesno:'true,false' }}" data-salt="{{ version.salt }}">
+                    {% if version.is_locked %}
+                        <em>🔒 Encrypted content - click "Decrypt History" to view</em>
+                    {% else %}
+                        {{ version.content|markdown }}
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -198,4 +281,279 @@
         </div>
     {% endif %}
 </div>
+
+<!-- Password Modal for decryption -->
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-modal-content">
+        <h3>🔒 Enter Password</h3>
+        <p>Enter the password to decrypt the history of this note</p>
+        <input type="password" id="passwordInput" class="password-input" placeholder="Enter password" />
+        <div class="password-buttons">
+            <button class="btn btn-secondary" onclick="hidePasswordModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="decryptHistory()">Decrypt</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Define global functions first
+window.showPasswordModal = function() {
+    document.getElementById('passwordModal').classList.remove('hidden');
+    document.getElementById('passwordInput').focus();
+}
+
+window.hidePasswordModal = function() {
+    document.getElementById('passwordModal').classList.add('hidden');
+    document.getElementById('passwordInput').value = '';
+}
+
+/**
+ * Client-side encryption/decryption for note history
+ */
+class NoteEncryption {
+    constructor() {
+        this.passwordCache = new Map();
+        this.algorithm = 'AES-GCM';
+        this.keyLength = 256;
+        this.ivLength = 12;
+        this.saltLength = 16;
+        this.iterations = 100000;
+    }
+
+    generateSalt() {
+        return crypto.getRandomValues(new Uint8Array(this.saltLength));
+    }
+
+    generateIV() {
+        return crypto.getRandomValues(new Uint8Array(this.ivLength));
+    }
+
+    async deriveKey(password, salt) {
+        const encoder = new TextEncoder();
+        const passwordKey = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+
+        return crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: this.iterations,
+                hash: 'SHA-256'
+            },
+            passwordKey,
+            {
+                name: this.algorithm,
+                length: this.keyLength
+            },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    async decrypt(encryptedText, password, saltHex) {
+        try {
+            // Convert base64 back to bytes
+            const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+            
+            // Extract salt from hex (stored separately in database)
+            const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+            
+            // Try to determine the format based on the length
+            let iv, encryptedData;
+            
+            if (combined.length >= this.saltLength + this.ivLength) {
+                // Check if this might be the old format (salt + iv + data)
+                // Extract the first saltLength bytes and see if they match our stored salt
+                const embeddedSalt = combined.slice(0, this.saltLength);
+                const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                
+                if (saltMatches) {
+                    // Old format: salt + iv + encrypted data
+                    console.log('Detected old format with embedded salt');
+                    iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                    encryptedData = combined.slice(this.saltLength + this.ivLength);
+                } else {
+                    // New format: iv + encrypted data
+                    console.log('Detected new format without embedded salt');
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+            } else {
+                // New format: iv + encrypted data
+                console.log('Detected new format based on length');
+                iv = combined.slice(0, this.ivLength);
+                encryptedData = combined.slice(this.ivLength);
+            }
+
+            const key = await this.deriveKey(password, salt);
+
+            const decryptedData = await crypto.subtle.decrypt(
+                {
+                    name: this.algorithm,
+                    iv: iv
+                },
+                key,
+                encryptedData
+            );
+
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            throw new Error('Failed to decrypt content - wrong password?');
+        }
+    }
+
+    cachePassword(noteId, password) {
+        this.passwordCache.set(noteId, password);
+    }
+
+    getCachedPassword(noteId) {
+        return this.passwordCache.get(noteId);
+    }
+}
+
+const noteEncryption = new NoteEncryption();
+
+// Include marked.js for markdown parsing
+if (typeof marked === 'undefined') {
+    console.log('Loading marked.js for history...');
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+    script.onload = function() {
+        console.log('marked.js loaded for history');
+    };
+    document.head.appendChild(script);
+}
+
+// Note data
+const noteData = {
+    id: {{ note.pk }},
+    is_locked: {{ note.is_locked|yesno:"true,false" }}
+};
+
+window.decryptHistory = async function() {
+    const password = document.getElementById('passwordInput').value;
+    
+    if (!password) {
+        alert('Please enter a password');
+        return;
+    }
+
+    try {
+        // Decrypt all version content elements
+        const contentElements = document.querySelectorAll('.version-content');
+        let decryptionSuccess = false;
+
+        console.log('Found', contentElements.length, 'content elements to check');
+
+        for (let i = 0; i < contentElements.length; i++) {
+            const element = contentElements[i];
+            const isLocked = element.dataset.isLocked;
+            const encryptedContent = element.dataset.encrypted;
+            const salt = element.dataset.salt;
+            
+            console.log(`Element ${i + 1}:`, {
+                className: element.className,
+                isLocked: isLocked,
+                hasEncrypted: !!encryptedContent,
+                hasSalt: !!salt,
+                contentLength: encryptedContent ? encryptedContent.length : 0,
+                saltLength: salt ? salt.length : 0
+            });
+            
+            // Check if this element is locked and has encrypted content
+            if ((isLocked === "true" || isLocked === true) && encryptedContent && encryptedContent.trim() && salt && salt.trim()) {
+                console.log(`Attempting to decrypt element ${i + 1}...`);
+                try {
+                    console.log('Attempting to decrypt content for element...');
+                    const decryptedContent = await noteEncryption.decrypt(encryptedContent, password, salt);
+                    
+                    // Render as markdown if marked is available, otherwise as plain text
+                    if (typeof marked !== 'undefined') {
+                        element.innerHTML = marked.parse(decryptedContent);
+                    } else {
+                        element.innerHTML = '<pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">' + escapeHtml(decryptedContent) + '</pre>';
+                    }
+                    
+                    decryptionSuccess = true;
+                    console.log(`Successfully decrypted element ${i + 1}`);
+                } catch (error) {
+                    console.error(`Failed to decrypt element ${i + 1}:`, error);
+                    // Continue to try other elements even if one fails
+                }
+            } else {
+                console.log(`Skipping element ${i + 1} - isLocked: ${isLocked}, hasContent: ${!!encryptedContent}, hasSalt: ${!!salt}`);
+            }
+        }
+
+        if (decryptionSuccess) {
+            // Cache the password
+            noteEncryption.cachePassword(noteData.id, password);
+            hidePasswordModal();
+            
+            // Hide the decrypt button
+            const decryptButton = document.querySelector('.decrypt-button');
+            if (decryptButton) {
+                decryptButton.style.display = 'none';
+            }
+            
+            // Initialize checkbox handlers for any checkboxes in the decrypted content
+            initializeCheckboxHandlers();
+        } else {
+            alert('Decryption failed. Wrong password?');
+        }
+    } catch (error) {
+        console.error('Decryption error:', error);
+        alert('Decryption failed: ' + error.message);
+    }
+}
+
+// Initialize checkbox handlers for task lists in decrypted content
+function initializeCheckboxHandlers() {
+    // Find all checkboxes in task lists within version content
+    const checkboxes = document.querySelectorAll('.version-content .task-list-item input[type="checkbox"]');
+    
+    checkboxes.forEach(function(checkbox, index) {
+        checkbox.removeEventListener('change', handleCheckboxChange); // Remove old listeners
+        checkbox.addEventListener('change', function() {
+            // History is read-only, so just show a message
+            alert('Note: This is a historical version. To edit checkboxes, go back to the current note.');
+            // Revert the checkbox
+            this.checked = !this.checked;
+        });
+    });
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Auto-decrypt if we have a cached password
+(async function() {
+    if (noteData.is_locked) {
+        const cachedPassword = noteEncryption.getCachedPassword(noteData.id);
+        if (cachedPassword) {
+            document.getElementById('passwordInput').value = cachedPassword;
+            await decryptHistory();
+        }
+    }
+})();
+
+// Allow pressing Enter in password field to decrypt
+document.getElementById('passwordInput')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        decryptHistory();
+    }
+});
+</script>
+
 {% endblock %}
