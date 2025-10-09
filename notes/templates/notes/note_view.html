@@ -42,6 +42,38 @@
         font-weight: 600;
         color: var(--text-primary);
         margin: 0;
+        margin-bottom: 16px;
+    }
+    
+    .create-note-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--btn-primary-bg);
+        color: var(--bg-secondary);
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+    
+    [data-theme="dark"] .create-note-btn {
+        color: var(--text-primary);
+    }
+    
+    .create-note-btn:hover {
+        background: var(--btn-primary-hover);
+        color: var(--bg-secondary);
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px var(--shadow-md);
+    }
+    
+    [data-theme="dark"] .create-note-btn:hover {
+        color: var(--text-primary);
     }
     
     .notes-list {
@@ -484,6 +516,9 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h3 class="sidebar-title">📚 All Notes</h3>
+            <a href="{% url 'note_create' %}" class="create-note-btn">
+                ✏️ Create New Note
+            </a>
         </div>
         <div class="notes-list">
             {% for n in all_notes %}
