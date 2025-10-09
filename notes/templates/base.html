@@ -5,6 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Personal Notebook{% endblock %}</title>
     <style>
+        :root {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: white;
+            --bg-tertiary: #f8f9fa;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --text-tertiary: #999;
+            --border-primary: #e8e8e8;
+            --border-secondary: #f0f0f0;
+            --border-hover: #d1d1d1;
+            --shadow-sm: rgba(0, 0, 0, 0.05);
+            --shadow-md: rgba(0, 0, 0, 0.06);
+            --shadow-lg: rgba(0, 0, 0, 0.15);
+            --btn-primary-bg: #1a1a1a;
+            --btn-primary-hover: #333;
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --scrollbar-track: #f1f1f1;
+            --scrollbar-thumb: #d1d1d1;
+            --scrollbar-thumb-hover: #b1b1b1;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #242424;
+            --text-primary: #e8e8e8;
+            --text-secondary: #b0b0b0;
+            --text-tertiary: #808080;
+            --border-primary: #404040;
+            --border-secondary: #353535;
+            --border-hover: #505050;
+            --shadow-sm: rgba(0, 0, 0, 0.3);
+            --shadow-md: rgba(0, 0, 0, 0.4);
+            --shadow-lg: rgba(0, 0, 0, 0.5);
+            --btn-primary-bg: #e8e8e8;
+            --btn-primary-hover: #f5f5f5;
+            --header-bg: rgba(45, 45, 45, 0.95);
+            --scrollbar-track: #2d2d2d;
+            --scrollbar-thumb: #505050;
+            --scrollbar-thumb-hover: #606060;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -13,22 +55,23 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: #f8f9fa;
+            background: var(--bg-primary);
             min-height: 100vh;
-            color: #1a1a1a;
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            background: white;
+            background: var(--bg-secondary);
             min-height: 100vh;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 0 40px var(--shadow-sm);
         }
         
         header {
-            background: white;
-            border-bottom: 1px solid #e8e8e8;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
             padding: 20px 40px;
             display: flex;
             justify-content: space-between;
@@ -37,13 +80,13 @@
             top: 0;
             z-index: 100;
             backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--header-bg);
         }
         
         header h1 {
             font-size: 22px;
             font-weight: 600;
-            color: #1a1a1a;
+            color: var(--text-primary);
             letter-spacing: -0.5px;
         }
         
@@ -55,12 +98,28 @@
         
         .user-info span {
             font-size: 14px;
-            color: #666;
+            color: var(--text-secondary);
         }
         
         .user-info strong {
-            color: #1a1a1a;
+            color: var(--text-primary);
             font-weight: 500;
+        }
+        
+        .theme-toggle {
+            background: transparent;
+            border: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .theme-toggle:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-hover);
         }
         
         .btn {
@@ -77,14 +136,18 @@
         }
         
         .btn-primary {
-            background: #1a1a1a;
-            color: white;
+            background: var(--btn-primary-bg);
+            color: var(--bg-secondary);
         }
         
         .btn-primary:hover {
-            background: #333;
+            background: var(--btn-primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px var(--shadow-lg);
+        }
+        
+        [data-theme="dark"] .btn-primary {
+            color: var(--text-primary);
         }
         
         .btn-success {
@@ -121,13 +184,13 @@
         
         .btn-white {
             background: transparent;
-            color: #1a1a1a;
-            border: 1px solid #e8e8e8;
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
         }
         
         .btn-white:hover {
-            background: #f8f9fa;
-            border-color: #d1d1d1;
+            background: var(--bg-tertiary);
+            border-color: var(--border-hover);
         }
         
         button.btn {
@@ -195,16 +258,16 @@
         }
         
         ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: var(--scrollbar-track);
         }
         
         ::-webkit-scrollbar-thumb {
-            background: #d1d1d1;
+            background: var(--scrollbar-thumb);
             border-radius: 5px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: #b1b1b1;
+            background: var(--scrollbar-thumb-hover);
         }
         
         {% block extra_css %}{% endblock %}
@@ -215,6 +278,9 @@
         <header>
             <h1>📓 Personal Notebook</h1>
             <div class="user-info">
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                    <span id="themeIcon">🌙</span>
+                </button>
                 {% if user.is_authenticated %}
                     <span>Welcome, <strong>{{ user.username }}</strong></span>
                     <form method="post" action="{% url 'logout' %}" style="display: inline;">
@@ -238,5 +304,33 @@
             {% block content %}{% endblock %}
         </div>
     </div>
+    <script>
+        // Theme toggle functionality
+        (function() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            const html = document.documentElement;
+            
+            // Load saved theme or default to light
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', savedTheme);
+            updateIcon(savedTheme);
+            
+            function updateIcon(theme) {
+                themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            }
+            
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    const currentTheme = html.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    
+                    html.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('theme', newTheme);
+                    updateIcon(newTheme);
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
