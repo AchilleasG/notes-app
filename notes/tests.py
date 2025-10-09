@@ -1,12 +1,12 @@
 from django.test import TestCase
-from django.contrib.auth.models import User
 from .models import Note, NoteVersion
 
 
 class NoteVersionTestCase(TestCase):
     def setUp(self):
         """Set up test user and note"""
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(username='testuser', password='testpass')
         self.client.login(username='testuser', password='testpass')
         
     def test_version_created_on_edit(self):
@@ -83,7 +83,8 @@ class NoteVersionTestCase(TestCase):
 class DarkModeTestCase(TestCase):
     def setUp(self):
         """Set up test user"""
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(username='testuser', password='testpass')
         self.client.login(username='testuser', password='testpass')
         
     def test_dark_mode_toggle_present(self):
@@ -323,14 +324,15 @@ class TagsTestCase(TestCase):
     def test_tag_unique_per_user(self):
         """Test that tag names are unique per user"""
         from .models import Tag, CustomUser
-        from django.db import IntegrityError
+        from django.db import IntegrityError, transaction
         
         # Create first tag
         Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
         
         # Try to create duplicate tag for same user
         with self.assertRaises(IntegrityError):
-            Tag.objects.create(user=self.user, name='Python', color='#16a34a')
+            with transaction.atomic():
+                Tag.objects.create(user=self.user, name='Python', color='#16a34a')
         
         # But another user can have the same tag name
         other_user = CustomUser.objects.create_user(
