@@ -1,9 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
+import json
 
 
 class CustomUser(AbstractUser):
@@ -22,8 +19,11 @@ class CustomUser(AbstractUser):
 class Note(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
-    content = models.TextField()
+    content = models.TextField()  # This will store encrypted content from client
     is_locked = models.BooleanField(default=False)
+    salt = models.CharField(
+        max_length=100, blank=True
+    )  # Store salt for client-side encryption
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -33,45 +33,17 @@ class Note(models.Model):
     def __str__(self):
         return self.title
 
-    @staticmethod
-    def derive_key(password: str, salt: bytes) -> bytes:
-        """Derive encryption key from password using PBKDF2"""
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        return base64.urlsafe_b64encode(kdf.derive(password.encode()))
-
-    def encrypt_content(self, password: str):
-        """Encrypt only content with the given password, leaving title unencrypted"""
-        # Use user ID as salt for consistency
-        salt = str(self.user.id).encode().ljust(16, b"0")[:16]
-        key = self.derive_key(password, salt)
-        fernet = Fernet(key)
-
-        # Encrypt only content, leave title as is
-        self.content = fernet.encrypt(self.content.encode()).decode()
-        self.is_locked = True
-
-    def decrypt_content(self, password: str) -> dict:
-        """Decrypt only content with the given password, title remains unencrypted"""
-        if not self.is_locked:
-            return {"title": self.title, "content": self.content}
-
-        try:
-            # Use user ID as salt for consistency
-            salt = str(self.user.id).encode().ljust(16, b"0")[:16]
-            key = self.derive_key(password, salt)
-            fernet = Fernet(key)
-
-            # Decrypt only content, title is already unencrypted
-            decrypted_content = fernet.decrypt(self.content.encode()).decode()
-
-            return {"title": self.title, "content": decrypted_content}
-        except Exception:
-            return None
+    def get_client_data(self):
+        """Return data safe for client-side processing"""
+        return {
+            "id": self.pk,
+            "title": self.title,
+            "content": self.content,  # Encrypted content
+            "is_locked": self.is_locked,
+            "salt": self.salt,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
 
 
 class NoteVersion(models.Model):
@@ -79,8 +51,9 @@ class NoteVersion(models.Model):
 
     note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name="versions")
     title = models.CharField(max_length=200)
-    content = models.TextField()
+    content = models.TextField()  # This will also store encrypted content
     is_locked = models.BooleanField(default=False)
+    salt = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -88,3 +61,14 @@ class NoteVersion(models.Model):
 
     def __str__(self):
         return f"{self.note.title} - {self.created_at}"
+
+    def get_client_data(self):
+        """Return data safe for client-side processing"""
+        return {
+            "id": self.pk,
+            "title": self.title,
+            "content": self.content,  # Encrypted content
+            "is_locked": self.is_locked,
+            "salt": self.salt,
+            "created_at": self.created_at.isoformat(),
+        }

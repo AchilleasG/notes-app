@@ -10,114 +10,203 @@
             padding: 0;
             box-sizing: border-box;
         }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f8f9fa;
             min-height: 100vh;
-            padding: 20px;
+            color: #1a1a1a;
         }
+        
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
+            min-height: 100vh;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
         }
+        
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 30px;
+            background: white;
+            border-bottom: 1px solid #e8e8e8;
+            padding: 20px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
         }
+        
         header h1 {
-            font-size: 28px;
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
         }
+        
         .user-info {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px;
         }
+        
         .user-info span {
             font-size: 14px;
+            color: #666;
         }
+        
+        .user-info strong {
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+        
         .btn {
-            padding: 8px 16px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
             font-size: 14px;
-            transition: all 0.3s;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            letter-spacing: -0.2px;
         }
+        
         .btn-primary {
-            background: #667eea;
+            background: #1a1a1a;
             color: white;
         }
+        
         .btn-primary:hover {
-            background: #5568d3;
+            background: #333;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+        
         .btn-success {
-            background: #48bb78;
+            background: #10b981;
             color: white;
         }
+        
         .btn-success:hover {
-            background: #38a169;
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
+        
         .btn-danger {
-            background: #f56565;
+            background: #ef4444;
             color: white;
         }
+        
         .btn-danger:hover {
-            background: #e53e3e;
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
+        
         .btn-secondary {
-            background: #718096;
+            background: #6b7280;
             color: white;
         }
+        
         .btn-secondary:hover {
-            background: #4a5568;
+            background: #4b5563;
+            transform: translateY(-1px);
         }
+        
         .btn-white {
-            background: white;
-            color: #667eea;
-            border: 2px solid white;
+            background: transparent;
+            color: #1a1a1a;
+            border: 1px solid #e8e8e8;
         }
+        
         .btn-white:hover {
-            background: rgba(255, 255, 255, 0.9);
+            background: #f8f9fa;
+            border-color: #d1d1d1;
         }
+        
         button.btn {
             font-family: inherit;
         }
+        
         .content {
-            padding: 30px;
+            padding: 40px;
+            max-width: 100%;
         }
+        
         .messages {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
+        
         .message {
-            padding: 12px 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid;
+            animation: slideIn 0.3s ease;
         }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .message.success {
-            background: #c6f6d5;
-            color: #22543d;
-            border-left: 4px solid #48bb78;
+            background: #ecfdf5;
+            color: #065f46;
+            border-color: #10b981;
         }
+        
         .message.error {
-            background: #fed7d7;
-            color: #742a2a;
-            border-left: 4px solid #f56565;
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #ef4444;
         }
+        
         .message.info {
-            background: #bee3f8;
-            color: #2c5282;
-            border-left: 4px solid #4299e1;
+            background: #eff6ff;
+            color: #1e40af;
+            border-color: #3b82f6;
         }
+        
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d1d1d1;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b1b1b1;
+        }
+        
         {% block extra_css %}{% endblock %}
     </style>
 </head>
@@ -127,7 +216,7 @@
             <h1>📓 Personal Notebook</h1>
             <div class="user-info">
                 {% if user.is_authenticated %}
-                    <span>Welcome, <strong>{{ user.username }}</strong>!</span>
+                    <span>Welcome, <strong>{{ user.username }}</strong></span>
                     <form method="post" action="{% url 'logout' %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-white">Logout</button>

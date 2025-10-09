@@ -6,51 +6,65 @@
 <style>
     .unlock-container {
         max-width: 500px;
-        margin: 0 auto;
+        margin: 60px auto;
         text-align: center;
     }
+    
     .unlock-container h2 {
-        color: #2d3748;
-        margin-bottom: 20px;
-        font-size: 24px;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
     }
+    
     .lock-icon {
         font-size: 64px;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
+        opacity: 0.7;
     }
+    
     .unlock-description {
-        color: #718096;
-        margin-bottom: 30px;
+        color: #666;
+        margin-bottom: 32px;
         line-height: 1.6;
+        font-size: 15px;
     }
+    
     .form-group {
-        margin-bottom: 20px;
+        margin-bottom: 24px;
         text-align: left;
     }
+    
     .form-group label {
         display: block;
-        color: #2d3748;
-        font-weight: 600;
+        color: #1a1a1a;
+        font-weight: 500;
         margin-bottom: 8px;
+        font-size: 14px;
     }
+    
     .form-group input {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #cbd5e0;
-        border-radius: 5px;
-        font-size: 14px;
-        transition: border-color 0.3s;
+        padding: 12px 16px;
+        border: 1px solid #e8e8e8;
+        border-radius: 8px;
+        font-size: 15px;
+        transition: all 0.2s ease;
     }
+    
     .form-group input:focus {
         outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #1a1a1a;
+        box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.05);
     }
+    
     .form-actions {
         display: flex;
         gap: 10px;
-        margin-top: 30px;
+        margin-top: 24px;
     }
+    
     .form-actions button,
     .form-actions a {
         flex: 1;

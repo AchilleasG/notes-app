@@ -1,236 +1,992 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
+{% load static %}
 
 {% block title %}{{ note.title }} - Personal Notebook{% endblock %}
 
 {% block extra_css %}
 <style>
+    /* Main layout container */
+    .note-layout {
+        display: flex;
+        height: calc(100vh - 80px); /* Adjust for header height */
+        position: relative;
+    }
+    
+    /* Sidebar styles */
+    .sidebar {
+        width: 300px;
+        background: #f8f9fa;
+        border-right: 1px solid #e8e8e8;
+        transition: transform 0.3s ease;
+        z-index: 10;
+        overflow-y: auto;
+        height: 100%;
+    }
+    
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar-header {
+        padding: 20px;
+        border-bottom: 1px solid #e8e8e8;
+        background: white;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+    
+    .sidebar-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin: 0;
+    }
+    
+    .notes-list {
+        padding: 0;
+    }
+    
+    .note-item {
+        display: block;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        text-decoration: none;
+        color: #1a1a1a;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .note-item:hover {
+        background: #f0f0f0;
+        color: #1a1a1a;
+        text-decoration: none;
+    }
+    
+    .note-item.active {
+        background: #1a1a1a;
+        color: white;
+    }
+    
+    .note-item.active:hover {
+        background: #333;
+        color: white;
+    }
+    
+    .note-item-title {
+        font-weight: 500;
+        font-size: 14px;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .note-item-meta {
+        font-size: 12px;
+        opacity: 0.7;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .lock-icon {
+        font-size: 12px;
+    }
+    
+    /* Toggle button */
+    .sidebar-toggle {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        background: #1a1a1a;
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        z-index: 20;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .sidebar-toggle:hover {
+        background: #333;
+        transform: scale(1.1);
+    }
+    
+    .sidebar-toggle.with-sidebar {
+        left: 320px;
+    }
+    
+    /* Main content area */
+    .content-area {
+        flex: 1;
+        overflow-y: auto;
+        transition: margin-left 0.3s ease;
+    }
+    
     .note-view-container {
         max-width: 800px;
         margin: 0 auto;
+        padding: 40px;
     }
+    
     .note-header {
-        margin-bottom: 30px;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #f0f0f0;
     }
+    
     .note-title {
-        color: #2d3748;
-        font-size: 28px;
-        margin-bottom: 10px;
+        color: #1a1a1a;
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 12px;
         word-wrap: break-word;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
     }
+    
     .note-title .lock-badge {
-        font-size: 20px;
-        margin-right: 10px;
+        font-size: 24px;
+        margin-right: 8px;
     }
+    
     .note-meta {
         font-size: 14px;
-        color: #718096;
-        margin-bottom: 20px;
+        color: #999;
+        display: flex;
+        gap: 12px;
     }
+    
     .note-content {
-        background: #f7fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        line-height: 1.6;
-        color: #2d3748;
+        background: white;
+        padding: 0;
+        margin-bottom: 32px;
+        line-height: 1.7;
+        color: #1a1a1a;
+        font-size: 16px;
     }
+    
     /* Markdown styling */
     .note-content h1, .note-content h2, .note-content h3, 
     .note-content h4, .note-content h5, .note-content h6 {
-        margin-top: 16px;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: #1a202c;
-    }
-    .note-content h1 { font-size: 2em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-    .note-content h2 { font-size: 1.5em; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-    .note-content h3 { font-size: 1.25em; }
-    .note-content ul, .note-content ol {
-        margin-left: 20px;
+        margin-top: 32px;
         margin-bottom: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+        letter-spacing: -0.3px;
+        line-height: 1.3;
     }
+    
+    .note-content h1 { 
+        font-size: 28px; 
+        border-bottom: 1px solid #f0f0f0; 
+        padding-bottom: 12px; 
+    }
+    
+    .note-content h2 { 
+        font-size: 24px; 
+        border-bottom: 1px solid #f0f0f0; 
+        padding-bottom: 10px; 
+    }
+    
+    .note-content h3 { font-size: 20px; }
+    
+    .note-content ul, .note-content ol {
+        margin-left: 24px;
+        margin-bottom: 20px;
+    }
+    
     .note-content li {
-        margin-bottom: 4px;
+        margin-bottom: 8px;
     }
+    
     /* Task list (checkbox) styling */
     .note-content .task-list-item {
         list-style: none;
-        margin-left: -20px;
+        margin-left: -24px;
         position: relative;
     }
+    
     .note-content .task-list-item input[type="checkbox"] {
-        margin-right: 8px;
+        margin-right: 10px;
         margin-left: 0;
         position: relative;
-        top: 1px;
+        top: 2px;
         cursor: pointer;
+        width: 16px;
+        height: 16px;
     }
+    
     .note-content .task-list-item input[type="checkbox"]:checked + label {
         text-decoration: line-through;
-        color: #6a6a6a;
+        color: #999;
     }
+    
     .note-content table {
         border-collapse: collapse;
         width: 100%;
-        margin: 16px 0;
-        background: white;
+        margin: 20px 0;
+        border: 1px solid #e8e8e8;
+        border-radius: 8px;
+        overflow: hidden;
     }
+    
     .note-content th, .note-content td {
-        border: 1px solid #cbd5e0;
-        padding: 8px 12px;
+        border: 1px solid #e8e8e8;
+        padding: 12px 16px;
         text-align: left;
     }
+    
     .note-content th {
-        background: #edf2f7;
+        background: #f8f9fa;
         font-weight: 600;
-        color: #2d3748;
+        color: #1a1a1a;
     }
+    
     .note-content tr:nth-child(even) {
-        background: #f7fafc;
+        background: #fafafa;
     }
+    
     .note-content img {
         max-width: 100%;
         height: auto;
-        border-radius: 4px;
-        margin: 16px 0;
+        border-radius: 8px;
+        margin: 24px 0;
     }
+    
     .note-content code {
-        background: #edf2f7;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-family: 'Courier New', monospace;
-        font-size: 0.9em;
-    }
-    .note-content pre {
-        background: #2d3748;
-        color: #e2e8f0;
-        padding: 12px;
+        background: #f5f5f5;
+        padding: 3px 8px;
         border-radius: 4px;
-        overflow-x: auto;
-        margin: 16px 0;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+        font-size: 0.9em;
+        color: #1a1a1a;
     }
+    
+    .note-content pre {
+        background: #1a1a1a;
+        color: #e8e8e8;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 24px 0;
+        font-size: 14px;
+    }
+    
     .note-content pre code {
         background: transparent;
         padding: 0;
         color: inherit;
     }
+    
     .note-content blockquote {
-        border-left: 4px solid #667eea;
-        padding-left: 16px;
-        margin: 16px 0;
-        color: #4a5568;
+        border-left: 3px solid #1a1a1a;
+        padding-left: 20px;
+        margin: 24px 0;
+        color: #666;
         font-style: italic;
     }
+    
     .note-content p {
-        margin-bottom: 12px;
+        margin-bottom: 16px;
     }
+    
     .note-content a {
-        color: #667eea;
-        text-decoration: none;
-    }
-    .note-content a:hover {
+        color: #1a1a1a;
         text-decoration: underline;
+        text-underline-offset: 3px;
     }
+    
+    .note-content a:hover {
+        color: #666;
+    }
+    
     .note-actions {
         display: flex;
         gap: 10px;
+        padding-top: 24px;
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    .btn-warning {
+        background: #f59e0b;
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #d97706;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed;
+            height: 100vh;
+            top: 0;
+            z-index: 30;
+        }
+        
+        .content-area {
+            margin-left: 0;
+        }
+        
+        .sidebar-toggle {
+            left: 20px;
+        }
+        
+        .sidebar-toggle.with-sidebar {
+            left: 20px;
+        }
+        
+        .note-view-container {
+            padding: 20px;
+        }
+    }
+    
+    /* Password modal */
+    .password-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .password-modal.hidden {
+        display: none;
+    }
+    
+    .password-modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+        width: 90%;
+    }
+    
+    .password-modal h3 {
+        margin: 0 0 20px 0;
+        color: #1a1a1a;
+        font-size: 18px;
+    }
+    
+    .password-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e8e8e8;
+        border-radius: 6px;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .password-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+    
+    .encrypted-placeholder {
+        background: #f8f9fa;
+        border: 2px dashed #e8e8e8;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        color: #666;
+        margin: 20px 0;
+    }
+    
+    .encrypted-placeholder .lock-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        display: block;
+    }
+    
+    .decrypt-btn {
+        background: #1a1a1a;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 16px;
+    }
+    
+    .decrypt-btn:hover {
+        background: #333;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="note-view-container">
-    <div class="note-header">
-        <h1 class="note-title">
-            {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
-            {{ note.title }}
-        </h1>
-        <div class="note-meta">
-            Created: {{ note.created_at|date:"M d, Y H:i" }}
-            {% if note.updated_at != note.created_at %}
-                | Updated: {{ note.updated_at|date:"M d, Y H:i" }}
-            {% endif %}
+<div class="note-layout">
+    <!-- Sidebar Toggle Button -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <span id="toggleIcon">☰</span>
+    </button>
+    
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3 class="sidebar-title">📚 All Notes</h3>
+        </div>
+        <div class="notes-list">
+            {% for n in all_notes %}
+                <a href="{% url 'note_view' n.pk %}" class="note-item {% if n.pk == note.pk %}active{% endif %}">
+                    <div class="note-item-title">
+                        {% if n.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
+                        {{ n.title|truncatechars:30 }}
+                    </div>
+                    <div class="note-item-meta">
+                        <span>{{ n.updated_at|date:"M d, Y" }}</span>
+                    </div>
+                </a>
+            {% empty %}
+                <div class="note-item">
+                    <div class="note-item-title">No notes yet</div>
+                    <div class="note-item-meta">Create your first note!</div>
+                </div>
+            {% endfor %}
         </div>
     </div>
     
-    <div class="note-content">
-        {{ note.content|markdown }}
-    </div>
-    
-    <div class="note-actions">
-        <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
-        <a href="{% url 'note_history' note.pk %}" class="btn btn-success">📜 History</a>
-        <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
-        <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
+    <!-- Main Content Area -->
+    <div class="content-area" id="contentArea">
+        <div class="note-view-container">
+            <div class="note-header">
+                <h1 class="note-title">
+                    {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
+                    {{ note.title }}
+                </h1>
+                <div class="note-meta">
+                    Created: {{ note.created_at|date:"M d, Y H:i" }}
+                    {% if note.updated_at != note.created_at %}
+                        | Updated: {{ note.updated_at|date:"M d, Y H:i" }}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div id="noteContent" class="note-content">
+                {% if note.is_locked %}
+                    <div class="encrypted-placeholder">
+                        <span class="lock-icon">🔒</span>
+                        <h3>This note is encrypted</h3>
+                        <p>Enter your password to decrypt and view the content.</p>
+                        <button class="decrypt-btn" onclick="showPasswordModal()">
+                            🔓 Decrypt Note
+                        </button>
+                    </div>
+                {% else %}
+                    {{ note.content|markdown }}
+                {% endif %}
+            </div>
+            
+            <div class="note-actions">
+                <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
+                <a href="{% url 'note_history' note.pk %}" class="btn btn-success">📜 History</a>
+                <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
+                <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Password Modal -->
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-modal-content">
+        <h3>🔒 Enter Password</h3>
+        <input type="password" id="passwordInput" class="password-input" placeholder="Enter password to decrypt note" />
+        <div class="password-buttons">
+            <button class="btn btn-secondary" onclick="hidePasswordModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="decryptNote()">Decrypt</button>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token for AJAX requests -->
+{% csrf_token %}
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+/**
+ * Client-side encryption/decryption for notes
+ * Uses Web Crypto API for secure encryption
+ */
+class NoteEncryption {
+    constructor() {
+        // Store passwords in memory only (cleared on page refresh)
+        this.passwordCache = new Map();
+        this.algorithm = 'AES-GCM';
+        this.keyLength = 256;
+        this.ivLength = 12; // 96 bits for AES-GCM
+        this.saltLength = 16; // 128 bits
+        this.iterations = 100000; // PBKDF2 iterations
+    }
+
+    /**
+     * Generate a random salt
+     */
+    generateSalt() {
+        return crypto.getRandomValues(new Uint8Array(this.saltLength));
+    }
+
+    /**
+     * Generate a random IV
+     */
+    generateIV() {
+        return crypto.getRandomValues(new Uint8Array(this.ivLength));
+    }
+
+    /**
+     * Derive a key from password and salt using PBKDF2
+     */
+    async deriveKey(password, salt) {
+        const encoder = new TextEncoder();
+        const passwordKey = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(password),
+            'PBKDF2',
+            false,
+            ['deriveKey']
+        );
+
+        return crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: this.iterations,
+                hash: 'SHA-256'
+            },
+            passwordKey,
+            {
+                name: this.algorithm,
+                length: this.keyLength
+            },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    /**
+     * Encrypt text with password
+     */
+    async encrypt(text, password) {
+        try {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            
+            const salt = this.generateSalt();
+            const iv = this.generateIV();
+            const key = await this.deriveKey(password, salt);
+
+            const encryptedData = await crypto.subtle.encrypt(
+                {
+                    name: this.algorithm,
+                    iv: iv
+                },
+                key,
+                data
+            );
+
+            // Combine only iv + encrypted data (salt stored separately)
+            const result = new Uint8Array(iv.length + encryptedData.byteLength);
+            result.set(iv, 0);
+            result.set(new Uint8Array(encryptedData), iv.length);
+
+            // Return base64 encoded result and salt as hex for storage
+            return {
+                encrypted: btoa(String.fromCharCode(...result)),
+                salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+            };
+        } catch (error) {
+            console.error('Encryption failed:', error);
+            throw new Error('Failed to encrypt content');
+        }
+    }
+
+    /**
+     * Decrypt text with password
+     */
+    async decrypt(encryptedText, password, saltHex) {
+        try {
+            // Convert base64 back to bytes
+            const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+            
+            // Extract salt from hex (stored separately in database)
+            const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+            
+            // Try to determine the format based on the length
+            let iv, encryptedData;
+            
+            if (combined.length >= this.saltLength + this.ivLength) {
+                // Check if this might be the old format (salt + iv + data)
+                // Extract the first saltLength bytes and see if they match our stored salt
+                const embeddedSalt = combined.slice(0, this.saltLength);
+                const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                
+                if (saltMatches) {
+                    // Old format: salt + iv + encrypted data
+                    console.log('Detected old format with embedded salt');
+                    iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                    encryptedData = combined.slice(this.saltLength + this.ivLength);
+                } else {
+                    // New format: iv + encrypted data
+                    console.log('Detected new format without embedded salt');
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+            } else {
+                // New format: iv + encrypted data
+                console.log('Detected new format based on length');
+                iv = combined.slice(0, this.ivLength);
+                encryptedData = combined.slice(this.ivLength);
+            }
+
+            const key = await this.deriveKey(password, salt);
+
+            const decryptedData = await crypto.subtle.decrypt(
+                {
+                    name: this.algorithm,
+                    iv: iv
+                },
+                key,
+                encryptedData
+            );
+
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            throw new Error('Failed to decrypt content - wrong password?');
+        }
+    }
+
+    /**
+     * Cache password for a note
+     */
+    cachePassword(noteId, password) {
+        this.passwordCache.set(noteId, password);
+    }
+
+    /**
+     * Get cached password for a note
+     */
+    getCachedPassword(noteId) {
+        return this.passwordCache.get(noteId);
+    }
+
+    /**
+     * Clear cached password for a note
+     */
+    clearCachedPassword(noteId) {
+        this.passwordCache.delete(noteId);
+    }
+
+    /**
+     * Clear all cached passwords
+     */
+    clearAllPasswords() {
+        this.passwordCache.clear();
+    }
+}
+
+// Global instance
+window.noteEncryption = new NoteEncryption();
+
+// Clear passwords when page is about to unload
+window.addEventListener('beforeunload', () => {
+    window.noteEncryption.clearAllPasswords();
+});
+</script>
+
+<script>
+console.log('Script starting to load...');
+
+// Note data from server
+const noteData = {
+    id: {{ note.pk }},
+    title: "{{ note.title|escapejs }}",
+    content: "{{ note.content|escapejs }}",
+    isLocked: {{ note.is_locked|yesno:"true,false" }},
+    salt: "{{ note.salt|default:"''"|escapejs }}",
+    createdAt: "{{ note.created_at.isoformat|escapejs }}",
+    updatedAt: "{{ note.updated_at.isoformat|escapejs }}"
+};
+
+console.log('Note data:', noteData);
+
+// Global functions for modal and decryption
+window.showPasswordModal = function() {
+    console.log('showPasswordModal called');
+    document.getElementById('passwordModal').classList.remove('hidden');
+    document.getElementById('passwordInput').focus();
+}
+
+window.hidePasswordModal = function() {
+    console.log('hidePasswordModal called');
+    document.getElementById('passwordModal').classList.add('hidden');
+    document.getElementById('passwordInput').value = '';
+}
+
+window.decryptNote = async function() {
+    console.log('decryptNote called');
+    const password = document.getElementById('passwordInput').value;
+    
+    if (!password) {
+        alert('Please enter a password');
+        return;
+    }
+
+    try {
+        console.log('Attempting to decrypt...');
+        const decryptedContent = await window.noteEncryption.decrypt(
+            noteData.content, 
+            password, 
+            noteData.salt
+        );
+        
+        console.log('Decryption successful');
+        
+        // Cache the password for this session
+        window.noteEncryption.cachePassword(noteData.id, password);
+        
+        // Update the content display - check if marked is loaded first
+        const contentDiv = document.getElementById('noteContent');
+        if (typeof marked !== 'undefined') {
+            contentDiv.innerHTML = marked.parse(decryptedContent);
+        } else {
+            // Fallback: display as plain text with line breaks
+            contentDiv.innerHTML = '<pre>' + decryptedContent + '</pre>';
+        }
+        
+        // Hide the modal
+        hidePasswordModal();
+        
+        // Re-initialize checkbox handlers for the new content
+        initializeCheckboxHandlers();
+        
+    } catch (error) {
+        console.error('Decryption error:', error);
+        alert('Decryption failed: ' + error.message);
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('passwordInput').focus();
+    }
+}
+
+async function decryptNoteWithPassword(password) {
+    try {
+        console.log('Auto-decrypting with cached password...');
+        const decryptedContent = await window.noteEncryption.decrypt(
+            noteData.content, 
+            password, 
+            noteData.salt
+        );
+        
+        // Update the content display
+        const contentDiv = document.getElementById('noteContent');
+        if (typeof marked !== 'undefined') {
+            contentDiv.innerHTML = marked.parse(decryptedContent);
+        } else {
+            contentDiv.innerHTML = '<pre>' + decryptedContent + '</pre>';
+        }
+        
+        // Re-initialize checkbox handlers for the new content
+        initializeCheckboxHandlers();
+        
+    } catch (error) {
+        console.error('Auto-decrypt failed:', error);
+        // If auto-decrypt fails, clear the cached password
+        window.noteEncryption.clearCachedPassword(noteData.id);
+    }
+}
+
+function initializeCheckboxHandlers() {
     // Find all checkboxes in task lists
-    const checkboxes = document.querySelectorAll('.note-content .task-list-item input[type="checkbox"]');
+    const checkboxes = document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]');
     
     checkboxes.forEach(function(checkbox, index) {
+        checkbox.removeEventListener('change', handleCheckboxChange); // Remove old listeners
         checkbox.addEventListener('change', function() {
-            updateCheckboxInNote(index, this.checked);
+            handleCheckboxChange(index, this.checked);
         });
     });
-    
-    function updateCheckboxInNote(checkboxIndex, isChecked) {
+}
+
+async function handleCheckboxChange(checkboxIndex, isChecked) {
+    try {
+        // Get the current decrypted content
+        const contentDiv = document.getElementById('noteContent');
+        const currentContent = extractMarkdownFromDOM(contentDiv);
+        
+        // Update the checkbox in the markdown
+        const updatedContent = updateMarkdownCheckbox(currentContent, checkboxIndex, isChecked);
+        
+        // If note is locked, encrypt the content before sending
+        let contentToSend = updatedContent;
+        if (noteData.isLocked) {
+            const password = window.noteEncryption.getCachedPassword(noteData.id);
+            if (!password) {
+                alert('Password not cached. Please decrypt the note again.');
+                return;
+            }
+            
+            const encrypted = await window.noteEncryption.encrypt(updatedContent, password);
+            contentToSend = encrypted.encrypted;
+        }
+        
         // Send AJAX request to update the note content
-        fetch('{% url "note_edit" note.pk %}', {
+        const response = await fetch(`/edit/${noteData.id}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token }}',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
             },
             body: new URLSearchParams({
-                'title': '{{ note.title|escapejs }}',
-                'content': updateMarkdownCheckbox('{{ note.content|escapejs }}', checkboxIndex, isChecked),
+                'title': noteData.title,
+                'content': contentToSend,
+                'salt': noteData.salt,
                 'ajax_update': 'true'
             })
-        })
-        .then(response => {
-            if (!response.ok) {
-                // Revert checkbox state if save failed
-                const checkbox = document.querySelectorAll('.task-list-item input[type="checkbox"]')[checkboxIndex];
-                checkbox.checked = !isChecked;
-                alert('Failed to save checkbox state');
-            }
-        })
-        .catch(error => {
-            // Revert checkbox state if request failed
-            const checkbox = document.querySelectorAll('.task-list-item input[type="checkbox"]')[checkboxIndex];
-            checkbox.checked = !isChecked;
-            console.error('Error:', error);
-            alert('Failed to save checkbox state');
         });
-    }
-    
-    function updateMarkdownCheckbox(content, checkboxIndex, isChecked) {
-        const lines = content.split('\\n');
-        let currentCheckboxIndex = 0;
         
-        for (let i = 0; i < lines.length; i++) {
-            // Check if this line contains a task list item
-            if (lines[i].match(/^[\s]*-\s*\[[x\s]\]/)) {
-                if (currentCheckboxIndex === checkboxIndex) {
-                    // Update this checkbox
-                    if (isChecked) {
-                        lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[x]');
-                    } else {
-                        lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[ ]');
-                    }
-                    break;
-                }
-                currentCheckboxIndex++;
-            }
+        if (!response.ok) {
+            throw new Error('Save failed');
         }
         
-        return lines.join('\\n');
+    } catch (error) {
+        console.error('Checkbox update failed:', error);
+        alert('Failed to save checkbox state');
+        // Revert checkbox state
+        const checkbox = document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]')[checkboxIndex];
+        checkbox.checked = !isChecked;
+    }
+}
+
+function extractMarkdownFromDOM(element) {
+    // This is a simplified conversion - you might want to use a proper HTML to Markdown converter
+    // For now, we'll work with the original content and just update checkboxes
+    return noteData.content; // Placeholder - in real implementation, convert DOM back to markdown
+}
+
+function updateMarkdownCheckbox(content, checkboxIndex, isChecked) {
+    const lines = content.split('\n');
+    let currentCheckboxIndex = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        // Check if this line contains a task list item
+        if (lines[i].match(/^[\s]*-\s*\[[x\s]\]/)) {
+            if (currentCheckboxIndex === checkboxIndex) {
+                // Update this checkbox
+                if (isChecked) {
+                    lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[x]');
+                } else {
+                    lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[ ]');
+                }
+                break;
+            }
+            currentCheckboxIndex++;
+        }
+    }
+    
+    return lines.join('\n');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing...');
+    
+    // Check if noteEncryption is available
+    if (typeof window.noteEncryption === 'undefined') {
+        console.error('noteEncryption not loaded!');
+    } else {
+        console.log('noteEncryption loaded successfully');
+    }
+    
+    // Include marked.js for markdown parsing
+    if (typeof marked === 'undefined') {
+        console.log('Loading marked.js...');
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        script.onload = function() {
+            console.log('marked.js loaded');
+        };
+        document.head.appendChild(script);
+    }
+    
+    // Sidebar toggle functionality
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    // Load saved sidebar state
+    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    if (sidebarCollapsed) {
+        sidebar.classList.add('collapsed');
+        sidebarToggle.classList.remove('with-sidebar');
+        toggleIcon.textContent = '☰';
+    } else {
+        sidebarToggle.classList.add('with-sidebar');
+        toggleIcon.textContent = '✕';
+    }
+    
+    sidebarToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+            sidebarToggle.classList.remove('with-sidebar');
+            toggleIcon.textContent = '☰';
+        } else {
+            sidebarToggle.classList.add('with-sidebar');
+            toggleIcon.textContent = '✕';
+        }
+        
+        // Save state to localStorage
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+    });
+
+    // Initialize checkbox handlers if note is not locked or auto-decrypt if password is cached
+    if (!noteData.isLocked) {
+        console.log('Note is not locked, initializing checkbox handlers');
+        initializeCheckboxHandlers();
+    } else {
+        console.log('Note is locked, checking for cached password');
+        // Check if we have a cached password
+        const cachedPassword = window.noteEncryption ? window.noteEncryption.getCachedPassword(noteData.id) : null;
+        if (cachedPassword) {
+            console.log('Found cached password, auto-decrypting');
+            decryptNoteWithPassword(cachedPassword);
+        } else {
+            console.log('No cached password found');
+        }
+    }
+    
+    // Handle Enter key in password modal
+    const passwordInput = document.getElementById('passwordInput');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                decryptNote();
+            }
+        });
     }
 });
+
+console.log('Script loaded, functions defined');
 </script>
 {% endblock %}
