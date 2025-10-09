@@ -339,25 +339,84 @@
         }
     }
     
-    // Insert markdown syntax
+    // Insert markdown syntax with toggle support
     function insertMarkdown(before, after, placeholder = '') {
         const textarea = document.getElementById('content');
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const selectedText = textarea.value.substring(start, end);
-        const newText = before + (selectedText || placeholder) + after;
+        const text = textarea.value;
+        const selectedText = text.substring(start, end);
         
-        textarea.value = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
+        // Check if we're undoing - look for the markdown syntax right before cursor
+        const beforeText = text.substring(Math.max(0, start - before.length), start);
+        const afterText = text.substring(end, end + after.length);
+        
+        // If the markdown syntax is already there and nothing is selected, remove it (toggle off)
+        if (beforeText === before && afterText === after && selectedText === placeholder) {
+            // Remove the markdown syntax
+            textarea.value = text.substring(0, start - before.length) + text.substring(end + after.length);
+            textarea.setSelectionRange(start - before.length, start - before.length);
+            textarea.focus();
+            return;
+        }
+        
+        // Otherwise, insert the markdown syntax (toggle on)
+        const newText = before + (selectedText || placeholder) + after;
+        textarea.value = text.substring(0, start) + newText + text.substring(end);
         
         // Set cursor position
         const newCursorPos = start + before.length + (selectedText ? selectedText.length : placeholder.length);
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         textarea.focus();
+        
+        // Store the insertion info for backspace handling
+        textarea.dataset.lastInsert = JSON.stringify({
+            start: start,
+            before: before,
+            after: after,
+            placeholder: placeholder,
+            cursorPos: newCursorPos
+        });
     }
     
-    // Auto-continue lists on Enter key
+    // Auto-continue lists on Enter key and handle backspace for markdown insertions
     const contentTextarea = document.getElementById('content');
     contentTextarea.addEventListener('keydown', function(e) {
+        // Handle Backspace for undoing markdown insertions
+        if (e.key === 'Backspace' && this.dataset.lastInsert) {
+            try {
+                const lastInsert = JSON.parse(this.dataset.lastInsert);
+                const currentPos = this.selectionStart;
+                
+                // Check if cursor is still at the position right after the insertion
+                if (currentPos === lastInsert.cursorPos && this.selectionStart === this.selectionEnd) {
+                    const text = this.value;
+                    const insertStart = lastInsert.start;
+                    const insertEnd = lastInsert.cursorPos + lastInsert.after.length;
+                    
+                    // Verify the markdown syntax is still there
+                    const beforePart = text.substring(insertStart, insertStart + lastInsert.before.length);
+                    const afterPart = text.substring(lastInsert.cursorPos, insertEnd);
+                    
+                    if (beforePart === lastInsert.before && afterPart === lastInsert.after) {
+                        e.preventDefault();
+                        // Remove the entire markdown insertion
+                        this.value = text.substring(0, insertStart) + lastInsert.placeholder + text.substring(insertEnd);
+                        this.setSelectionRange(insertStart + lastInsert.placeholder.length, insertStart + lastInsert.placeholder.length);
+                        delete this.dataset.lastInsert;
+                        return;
+                    }
+                }
+            } catch (error) {
+                // If parsing fails, just continue with normal backspace
+            }
+        }
+        
+        // Clear lastInsert on any other key press
+        if (e.key !== 'Backspace' && this.dataset.lastInsert) {
+            delete this.dataset.lastInsert;
+        }
+        
         if (e.key === 'Enter') {
             const start = this.selectionStart;
             const text = this.value;
