@@ -1,141 +1,38 @@
 #!/bin/bash
 
-# Deployment script for personal-notebook
-# This script:
-# 1. Forces checkout to remote main (dumps local changes, keeps unversioned files)
-# 2. Rebuilds and runs Docker containers
-# 3. Runs database migrations
+# Simple deployment script for personal-notebook
+# 1. Update current branch to match main (preserve unversioned files)
+# 2. Build and run Docker containers
 
 set -e  # Exit on any error
 
-echo "🚀 Starting deployment process..."
+echo "🚀 Starting deployment..."
 
-# Colors for output
-RED='\033[0;31m'
+# Colors
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if we're in a git repository
-if [ ! -d ".git" ]; then
-    print_error "Not in a git repository!"
-    exit 1
-fi
-
-# Check if docker and docker-compose are available
-if ! command -v docker &> /dev/null; then
-    print_error "Docker is not installed or not in PATH"
-    exit 1
-fi
-
-# Check if docker-compose.yml exists
-if [ ! -f "docker-compose.yml" ]; then
-    print_error "docker-compose.yml not found in current directory!"
-    exit 1
-fi
-
-print_status "Fetching latest changes from remote..."
+echo -e "${BLUE}[INFO]${NC} Fetching latest changes..."
 git fetch origin
 
-# Check if there are any local changes
-if ! git diff-index --quiet HEAD --; then
-    print_warning "Found local changes. These will be discarded!"
-    git status --porcelain
-    read -p "Continue? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_error "Deployment cancelled by user"
-        exit 1
-    fi
-fi
-
-# Save list of unversioned files before checkout
-print_status "Identifying unversioned files to preserve..."
-UNVERSIONED_FILES=$(git ls-files --others --exclude-standard)
-if [ -n "$UNVERSIONED_FILES" ]; then
-    print_warning "Found unversioned files that will be preserved:"
-    echo "$UNVERSIONED_FILES"
-fi
-
-print_status "Switching to main branch and updating to latest remote version..."
+echo -e "${BLUE}[INFO]${NC} Updating to latest main branch..."
 git checkout main
 git reset --hard origin/main
 
-print_success "Successfully updated to latest main branch"
-
-# Show current commit info
-print_status "Current commit:"
+echo -e "${GREEN}[SUCCESS]${NC} Updated to latest main"
 git log --oneline -1
 
-# Stop only THIS project's containers (using current directory's docker-compose.yml)
-print_status "Stopping existing containers for this project..."
+echo -e "${BLUE}[INFO]${NC} Stopping containers..."
 sudo docker compose down
 
-print_status "Rebuilding Docker images for this project..."
+echo -e "${BLUE}[INFO]${NC} Building containers..."
 sudo docker compose build --no-cache
 
-print_status "Starting Docker containers for this project..."
+echo -e "${BLUE}[INFO]${NC} Starting containers..."
 sudo docker compose up -d
 
-print_status "Waiting for containers to start..."
-sleep 10
-
-
-print_status "Running database migrations..."
-if sudo docker compose exec web python manage.py migrate; then
-    print_success "Database migrations completed successfully!"
-else
-    print_error "Database migrations failed!"
-    sudo docker compose logs web
-    exit 1
-fi
-
-print_status "Collecting static files..."
-if sudo docker compose exec web python manage.py collectstatic --noinput; then
-    print_success "Static files collected successfully!"
-else
-    print_warning "Static files collection failed (non-critical)"
-fi
-
-# Check if containers are running (only for this project)
-if sudo docker compose ps | grep -q "Up"; then
-    print_success "Docker containers are running!"
-    
-    print_status "Container status for this project:"
-    sudo docker compose ps
-    
-    print_status "Application should be available at http://localhost:8001"
-    
-    # Show logs for a few seconds
-    print_status "Recent logs:"
-    timeout 5 sudo docker compose logs --tail=20 || true
-    
-else
-    print_error "Some containers failed to start!"
-    sudo docker compose ps
-    print_status "Container logs:"
-    sudo docker compose logs
-    exit 1
-fi
-
-print_success "🎉 Deployment completed successfully!"
-print_status "To view logs: sudo docker compose logs -f"
-print_status "To stop: sudo docker compose down"
+echo -e "${GREEN}[SUCCESS]${NC} Deployment complete!"
+echo -e "${BLUE}[INFO]${NC} Containers:"
+sudo docker compose ps
