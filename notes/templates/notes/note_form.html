@@ -258,6 +258,118 @@
         color: var(--text-tertiary);
         margin-top: 8px;
     }
+    
+    /* Tags styling */
+    .tags-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+        min-height: 32px;
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .tag-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 500;
+        color: white;
+        cursor: default;
+        transition: all 0.2s ease;
+    }
+    
+    .tag-badge:hover {
+        opacity: 0.9;
+    }
+    
+    .tag-remove {
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-remove:hover {
+        opacity: 1;
+    }
+    
+    .tags-input-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    #tags-input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 14px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: all 0.2s ease;
+    }
+    
+    #tags-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    
+    #tag-color {
+        width: 50px;
+        height: 38px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        cursor: pointer;
+        background: var(--bg-secondary);
+    }
+    
+    .tags-autocomplete {
+        position: relative;
+        margin-top: 4px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--shadow-md);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    
+    .tag-suggestion {
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .tag-suggestion:hover,
+    .tag-suggestion.selected {
+        background: var(--bg-tertiary);
+    }
+    
+    .tag-suggestion-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .tag-suggestion-name {
+        color: var(--text-primary);
+        font-size: 14px;
+    }
 </style>
 {% endblock %}
 
@@ -303,6 +415,18 @@
             </div>
             <textarea id="content" name="content" class="with-toolbar" required placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
         </div>
+        
+        <div class="form-group">
+            <label for="tags-input">Tags</label>
+            <div id="tags-container" class="tags-container"></div>
+            <div class="tags-input-wrapper">
+                <input type="text" id="tags-input" placeholder="Type to add tags... (press Enter or comma)" autocomplete="off">
+                <input type="color" id="tag-color" value="#3b82f6" title="Tag color">
+            </div>
+            <div id="tags-autocomplete" class="tags-autocomplete" style="display: none;"></div>
+            <input type="hidden" id="tags-data" name="tags">
+        </div>
+        
         {% if not note or not note.is_locked %}
         <div class="form-group">
             <label class="checkbox-label">
@@ -725,5 +849,174 @@
         }
     })();
     {% endif %}
+    
+    // Tags Management
+    (function() {
+        const tagsContainer = document.getElementById('tags-container');
+        const tagsInput = document.getElementById('tags-input');
+        const tagColor = document.getElementById('tag-color');
+        const tagsAutocomplete = document.getElementById('tags-autocomplete');
+        const tagsData = document.getElementById('tags-data');
+        
+        let tags = [];
+        let autocompleteResults = [];
+        let selectedIndex = -1;
+        let debounceTimer;
+        
+        // Load existing tags if editing a note
+        {% if note %}
+        {% for tag in note.tags.all %}
+        tags.push({ name: '{{ tag.name|escapejs }}', color: '{{ tag.color }}' });
+        {% endfor %}
+        renderTags();
+        {% endif %}
+        
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            tags.forEach((tag, index) => {
+                const badge = document.createElement('span');
+                badge.className = 'tag-badge';
+                badge.style.backgroundColor = tag.color;
+                badge.innerHTML = `
+                    ${tag.name}
+                    <span class="tag-remove" onclick="removeTag(${index})">×</span>
+                `;
+                tagsContainer.appendChild(badge);
+            });
+            updateTagsData();
+        }
+        
+        window.removeTag = function(index) {
+            tags.splice(index, 1);
+            renderTags();
+        };
+        
+        function updateTagsData() {
+            tagsData.value = JSON.stringify(tags);
+        }
+        
+        function addTag(name, color) {
+            name = name.trim();
+            if (!name) return;
+            
+            // Check if tag already exists (case-insensitive)
+            const exists = tags.some(t => t.name.toLowerCase() === name.toLowerCase());
+            if (exists) {
+                tagsInput.value = '';
+                return;
+            }
+            
+            tags.push({ name, color });
+            renderTags();
+            tagsInput.value = '';
+            hideAutocomplete();
+        }
+        
+        function showAutocomplete(results) {
+            if (results.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+            
+            autocompleteResults = results;
+            selectedIndex = -1;
+            
+            tagsAutocomplete.innerHTML = '';
+            results.forEach((tag, index) => {
+                const item = document.createElement('div');
+                item.className = 'tag-suggestion';
+                item.innerHTML = `
+                    <span class="tag-suggestion-color" style="background-color: ${tag.color}"></span>
+                    <span class="tag-suggestion-name">${tag.name}</span>
+                `;
+                item.addEventListener('click', () => {
+                    addTag(tag.name, tag.color);
+                    tagColor.value = tag.color;
+                });
+                tagsAutocomplete.appendChild(item);
+            });
+            
+            tagsAutocomplete.style.display = 'block';
+        }
+        
+        function hideAutocomplete() {
+            tagsAutocomplete.style.display = 'none';
+            autocompleteResults = [];
+            selectedIndex = -1;
+        }
+        
+        async function fetchAutocomplete(query) {
+            try {
+                const response = await fetch(`{% url 'tag_autocomplete' %}?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                showAutocomplete(data.results);
+            } catch (error) {
+                console.error('Failed to fetch autocomplete:', error);
+            }
+        }
+        
+        tagsInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            
+            clearTimeout(debounceTimer);
+            
+            if (value.trim()) {
+                debounceTimer = setTimeout(() => {
+                    fetchAutocomplete(value.trim());
+                }, 200);
+            } else {
+                hideAutocomplete();
+            }
+        });
+        
+        tagsInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const value = tagsInput.value.replace(/,\s*$/, '').trim();
+                if (value) {
+                    if (selectedIndex >= 0 && autocompleteResults[selectedIndex]) {
+                        const selected = autocompleteResults[selectedIndex];
+                        addTag(selected.name, selected.color);
+                        tagColor.value = selected.color;
+                    } else {
+                        addTag(value, tagColor.value);
+                    }
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (autocompleteResults.length > 0) {
+                    selectedIndex = Math.min(selectedIndex + 1, autocompleteResults.length - 1);
+                    updateSelectedSuggestion();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (autocompleteResults.length > 0) {
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelectedSuggestion();
+                }
+            } else if (e.key === 'Escape') {
+                hideAutocomplete();
+            }
+        });
+        
+        function updateSelectedSuggestion() {
+            const suggestions = tagsAutocomplete.querySelectorAll('.tag-suggestion');
+            suggestions.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        // Click outside to close autocomplete
+        document.addEventListener('click', (e) => {
+            if (!tagsInput.contains(e.target) && !tagsAutocomplete.contains(e.target)) {
+                hideAutocomplete();
+            }
+        });
+    })();
 </script>
 {% endblock %}

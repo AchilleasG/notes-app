@@ -16,6 +16,22 @@ class CustomUser(AbstractUser):
         return self.username
 
 
+class Tag(models.Model):
+    """Tag model for categorizing notes"""
+    
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="tags")
+    name = models.CharField(max_length=50)
+    color = models.CharField(max_length=7, default="#3b82f6", help_text="Hex color code (e.g., #3b82f6)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ["name"]
+        unique_together = ["user", "name"]  # Each user can have unique tag names
+    
+    def __str__(self):
+        return self.name
+
+
 class Note(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
@@ -24,6 +40,7 @@ class Note(models.Model):
     salt = models.CharField(
         max_length=100, blank=True
     )  # Store salt for client-side encryption
+    tags = models.ManyToManyField(Tag, related_name="notes", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -41,6 +58,7 @@ class Note(models.Model):
             "content": self.content,  # Encrypted content
             "is_locked": self.is_locked,
             "salt": self.salt,
+            "tags": [{"id": tag.id, "name": tag.name, "color": tag.color} for tag in self.tags.all()],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

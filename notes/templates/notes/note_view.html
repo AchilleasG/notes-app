@@ -105,6 +105,31 @@
         flex-wrap: wrap;
     }
     
+    /* Note tags */
+    .note-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-secondary);
+    }
+    
+    .note-tag {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 500;
+        color: white;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    
+    .note-tag:hover {
+        opacity: 0.85;
+    }
+    
     .note-content {
         padding: 0;
         margin-bottom: 24px;
@@ -482,6 +507,17 @@
                     <span>• Updated {{ note.updated_at|date:"M d, Y" }}</span>
                 {% endif %}
             </div>
+            {% if note.tags.all %}
+                <div class="note-tags">
+                    {% for tag in note.tags.all %}
+                        <a href="{% url 'note_list' %}?tags={{ tag.name|urlencode }}" 
+                           class="note-tag" 
+                           style="background-color: {{ tag.color }}">
+                            {{ tag.name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
         
         <div id="noteContent" class="note-content">

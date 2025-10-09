@@ -3,14 +3,32 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.contrib.auth import update_session_auth_hash
-from .models import Note, NoteVersion
+from django.db.models import Q
+from .models import Note, NoteVersion, Tag
 from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 
 
 @login_required
 def note_list(request):
     notes = Note.objects.filter(user=request.user)
-    return render(request, "notes/note_list.html", {"notes": notes})
+    
+    # Filter by tags if specified
+    tag_filter = request.GET.get('tags', '').strip()
+    if tag_filter:
+        # Split by comma and filter (case-insensitive)
+        tag_names = [t.strip() for t in tag_filter.split(',') if t.strip()]
+        for tag_name in tag_names:
+            notes = notes.filter(tags__name__iexact=tag_name)
+        notes = notes.distinct()
+    
+    # Get all tags for the current user
+    user_tags = Tag.objects.filter(user=request.user)
+    
+    return render(request, "notes/note_list.html", {
+        "notes": notes,
+        "user_tags": user_tags,
+        "selected_tags": tag_filter
+    })
 
 
 @login_required
@@ -22,6 +40,7 @@ def note_create(request):
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", "")
         image = request.FILES.get("image")
+        tags_data = request.POST.get("tags", "")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -51,11 +70,38 @@ def note_create(request):
                         destination.write(chunk)
 
             note.save()
+            
+            # Process tags
+            if tags_data:
+                import json
+                try:
+                    tags_list = json.loads(tags_data)
+                    for tag_data in tags_list:
+                        tag_name = tag_data.get('name', '').strip()
+                        tag_color = tag_data.get('color', '#3b82f6')
+                        if tag_name:
+                            # Get or create tag (case-insensitive)
+                            tag, created = Tag.objects.get_or_create(
+                                user=request.user,
+                                name__iexact=tag_name,
+                                defaults={'name': tag_name, 'color': tag_color}
+                            )
+                            # Update color if tag exists but color changed
+                            if not created and tag.color != tag_color:
+                                tag.color = tag_color
+                                tag.save()
+                            note.tags.add(tag)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            
             messages.success(request, "Note created successfully!")
             return redirect("note_list")
         else:
             messages.error(request, "Title and content are required.")
-    return render(request, "notes/note_form.html")
+    
+    # Get all user tags for autocomplete
+    user_tags = Tag.objects.filter(user=request.user)
+    return render(request, "notes/note_form.html", {"user_tags": user_tags})
 
 
 @login_required
@@ -69,6 +115,7 @@ def note_edit(request, pk):
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", note.salt)
         image = request.FILES.get("image")
+        tags_data = request.POST.get("tags", "")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -104,6 +151,30 @@ def note_edit(request, pk):
             note.is_locked = is_locked
             note.salt = salt
             note.save()
+            
+            # Process tags
+            note.tags.clear()  # Remove existing tags
+            if tags_data:
+                import json
+                try:
+                    tags_list = json.loads(tags_data)
+                    for tag_data in tags_list:
+                        tag_name = tag_data.get('name', '').strip()
+                        tag_color = tag_data.get('color', '#3b82f6')
+                        if tag_name:
+                            # Get or create tag (case-insensitive)
+                            tag, created = Tag.objects.get_or_create(
+                                user=request.user,
+                                name__iexact=tag_name,
+                                defaults={'name': tag_name, 'color': tag_color}
+                            )
+                            # Update color if tag exists but color changed
+                            if not created and tag.color != tag_color:
+                                tag.color = tag_color
+                                tag.save()
+                            note.tags.add(tag)
+                except (json.JSONDecodeError, ValueError):
+                    pass
 
             # Check if this is an AJAX request for checkbox update
             if request.POST.get("ajax_update") == "true":
@@ -115,7 +186,8 @@ def note_edit(request, pk):
             messages.error(request, "Title and content are required.")
 
     # Return note data for editing (client will handle decryption if needed)
-    return render(request, "notes/note_form.html", {"note": note})
+    user_tags = Tag.objects.filter(user=request.user)
+    return render(request, "notes/note_form.html", {"note": note, "user_tags": user_tags})
 
 
 @login_required
@@ -241,3 +313,18 @@ def profile(request):
         "notes/profile.html",
         {"password_form": password_form, "profile_form": profile_form},
     )
+
+
+@login_required
+def tag_autocomplete(request):
+    """API endpoint for tag autocomplete"""
+    query = request.GET.get('q', '').strip()
+    
+    if not query:
+        tags = Tag.objects.filter(user=request.user)[:20]
+    else:
+        # Case-insensitive search
+        tags = Tag.objects.filter(user=request.user, name__icontains=query)[:20]
+    
+    results = [{"id": tag.id, "name": tag.name, "color": tag.color} for tag in tags]
+    return JsonResponse({"results": results})

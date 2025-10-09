@@ -166,6 +166,93 @@
         font-style: italic;
         font-size: 14px;
     }
+    
+    /* Tags filter */
+    .tags-filter {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .tags-filter-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 14px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: all 0.2s ease;
+    }
+    
+    .tags-filter-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    
+    .tags-filter-autocomplete {
+        position: absolute;
+        margin-top: 4px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px var(--shadow-md);
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        min-width: 200px;
+    }
+    
+    .filter-tag-suggestion {
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .filter-tag-suggestion:hover {
+        background: var(--bg-tertiary);
+    }
+    
+    .filter-tag-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .filter-tag-name {
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+    
+    /* Note card tags */
+    .note-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+    }
+    
+    .note-tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: white;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    
+    .note-tag:hover {
+        opacity: 0.85;
+    }
 </style>
 {% endblock %}
 
@@ -174,6 +261,21 @@
     <div class="header-actions">
         <h2>My Notes</h2>
         <a href="{% url 'note_create' %}" class="btn btn-primary">+ New Note</a>
+    </div>
+    
+    <div class="tags-filter">
+        <div style="position: relative; flex: 1; min-width: 200px;">
+            <input type="text" 
+                   id="tags-filter-input" 
+                   class="tags-filter-input" 
+                   placeholder="Filter by tags (comma-separated)..." 
+                   value="{{ selected_tags|default:'' }}"
+                   autocomplete="off">
+            <div id="tags-filter-autocomplete" class="tags-filter-autocomplete" style="display: none;"></div>
+        </div>
+        <button id="clear-filter" class="btn btn-secondary" style="{% if not selected_tags %}display: none;{% endif %}">
+            Clear Filter
+        </button>
     </div>
 
     {% if notes %}
@@ -188,6 +290,17 @@
                         <p class="locked-message">🔐 Encrypted note - click to unlock</p>
                     {% else %}
                         <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
+                    {% endif %}
+                    {% if note.tags.all %}
+                        <div class="note-tags" onclick="event.stopPropagation()">
+                            {% for tag in note.tags.all %}
+                                <span class="note-tag" 
+                                      style="background-color: {{ tag.color }}"
+                                      onclick="filterByTag('{{ tag.name|escapejs }}')">
+                                    {{ tag.name }}
+                                </span>
+                            {% endfor %}
+                        </div>
                     {% endif %}
                     <div class="note-meta">
                         Updated {{ note.updated_at|date:"M d, Y" }}
@@ -209,4 +322,113 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+    // Tag filtering functionality
+    const filterInput = document.getElementById('tags-filter-input');
+    const filterAutocomplete = document.getElementById('tags-filter-autocomplete');
+    const clearButton = document.getElementById('clear-filter');
+    let debounceTimer;
+    let currentTags = filterInput.value ? filterInput.value.split(',').map(t => t.trim()).filter(t => t) : [];
+    
+    function filterByTag(tagName) {
+        window.location.href = `?tags=${encodeURIComponent(tagName)}`;
+    }
+    
+    window.filterByTag = filterByTag;
+    
+    clearButton.addEventListener('click', () => {
+        window.location.href = window.location.pathname;
+    });
+    
+    filterInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        
+        clearTimeout(debounceTimer);
+        
+        if (value.trim()) {
+            clearButton.style.display = 'block';
+            
+            // Get the last tag being typed
+            const tags = value.split(',').map(t => t.trim());
+            const lastTag = tags[tags.length - 1];
+            
+            if (lastTag) {
+                debounceTimer = setTimeout(() => {
+                    fetchAutocomplete(lastTag);
+                }, 200);
+            } else {
+                hideAutocomplete();
+            }
+        } else {
+            clearButton.style.display = 'none';
+            hideAutocomplete();
+        }
+    });
+    
+    filterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyFilter();
+        }
+    });
+    
+    function applyFilter() {
+        const tags = filterInput.value.split(',').map(t => t.trim()).filter(t => t).join(',');
+        if (tags) {
+            window.location.href = `?tags=${encodeURIComponent(tags)}`;
+        } else {
+            window.location.href = window.location.pathname;
+        }
+    }
+    
+    async function fetchAutocomplete(query) {
+        try {
+            const response = await fetch(`{% url 'tag_autocomplete' %}?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            showAutocomplete(data.results);
+        } catch (error) {
+            console.error('Failed to fetch autocomplete:', error);
+        }
+    }
+    
+    function showAutocomplete(results) {
+        if (results.length === 0) {
+            hideAutocomplete();
+            return;
+        }
+        
+        filterAutocomplete.innerHTML = '';
+        results.forEach(tag => {
+            const item = document.createElement('div');
+            item.className = 'filter-tag-suggestion';
+            item.innerHTML = `
+                <span class="filter-tag-color" style="background-color: ${tag.color}"></span>
+                <span class="filter-tag-name">${tag.name}</span>
+            `;
+            item.addEventListener('click', () => {
+                // Replace the last tag with the selected one
+                const tags = filterInput.value.split(',').map(t => t.trim());
+                tags[tags.length - 1] = tag.name;
+                filterInput.value = tags.join(', ');
+                hideAutocomplete();
+                filterInput.focus();
+            });
+            filterAutocomplete.appendChild(item);
+        });
+        
+        filterAutocomplete.style.display = 'block';
+    }
+    
+    function hideAutocomplete() {
+        filterAutocomplete.style.display = 'none';
+    }
+    
+    // Click outside to close autocomplete
+    document.addEventListener('click', (e) => {
+        if (!filterInput.contains(e.target) && !filterAutocomplete.contains(e.target)) {
+            hideAutocomplete();
+        }
+    });
+</script>
 {% endblock %}
