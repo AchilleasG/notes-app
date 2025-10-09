@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px 0;
+    }
+    
+    .profile-container h2 {
+        color: var(--text-primary);
+        margin-bottom: 32px;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+    }
+    
+    .profile-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 24px;
+    }
+    
+    .profile-section h3 {
+        color: var(--text-primary);
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        border-bottom: 2px solid var(--border-primary);
+        padding-bottom: 12px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        color: var(--text-primary);
+        font-weight: 500;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-family: inherit;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--btn-primary-bg);
+        box-shadow: 0 0 0 3px var(--shadow-sm);
+    }
+    
+    .form-actions {
+        margin-top: 24px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    .form-actions button {
+        padding: 10px 24px;
+        font-size: 14px;
+    }
+    
+    .errorlist {
+        list-style: none;
+        background: #fef2f2;
+        color: #991b1b;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 3px solid #ef4444;
+        font-size: 14px;
+    }
+    
+    [data-theme="dark"] .errorlist {
+        background: #450a0a;
+        color: #fca5a5;
+        border-left-color: #dc2626;
+    }
+    
+    .helptext {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-top: 6px;
+    }
+    
+    .user-info-display {
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .user-info-display p {
+        margin: 8px 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    
+    .user-info-display strong {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <h2>👤 User Profile</h2>
+    
+    <div class="user-info-display">
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email|default:"Not set" }}</p>
+        <p><strong>Member since:</strong> {{ user.date_joined|date:"F d, Y" }}</p>
+    </div>
+    
+    <div class="profile-section">
+        <h3>Update Profile Information</h3>
+        <form method="post">
+            {% csrf_token %}
+            {% if profile_form.errors %}
+                <ul class="errorlist">
+                    {% for field in profile_form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in profile_form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            
+            <div class="form-group">
+                <label for="{{ profile_form.first_name.id_for_label }}">First Name</label>
+                {{ profile_form.first_name }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.last_name.id_for_label }}">Last Name</label>
+                {{ profile_form.last_name }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.email.id_for_label }}">Email</label>
+                {{ profile_form.email }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.bio.id_for_label }}">Bio</label>
+                {{ profile_form.bio }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.birth_date.id_for_label }}">Birth Date</label>
+                {{ profile_form.birth_date }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.location.id_for_label }}">Location</label>
+                {{ profile_form.location }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ profile_form.website.id_for_label }}">Website</label>
+                {{ profile_form.website }}
+            </div>
+            
+            <div class="form-actions">
+                <a href="{% url 'note_list' %}" class="btn btn-white">Cancel</a>
+                <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="profile-section">
+        <h3>Change Password</h3>
+        <form method="post">
+            {% csrf_token %}
+            {% if password_form.errors %}
+                <ul class="errorlist">
+                    {% for field in password_form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in password_form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            
+            <div class="form-group">
+                <label for="{{ password_form.old_password.id_for_label }}">Current Password</label>
+                {{ password_form.old_password }}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ password_form.new_password1.id_for_label }}">New Password</label>
+                {{ password_form.new_password1 }}
+                {% if password_form.new_password1.help_text %}
+                    <span class="helptext">{{ password_form.new_password1.help_text }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ password_form.new_password2.id_for_label }}">Confirm New Password</label>
+                {{ password_form.new_password2 }}
+            </div>
+            
+            <div class="form-actions">
+                <a href="{% url 'note_list' %}" class="btn btn-white">Cancel</a>
+                <button type="submit" name="change_password" class="btn btn-primary">Change Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
