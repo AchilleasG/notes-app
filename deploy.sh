@@ -4,6 +4,7 @@
 # This script:
 # 1. Forces checkout to remote main (dumps local changes, keeps unversioned files)
 # 2. Rebuilds and runs Docker containers
+# 3. Runs database migrations
 
 set -e  # Exit on any error
 
@@ -45,7 +46,6 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-
 print_status "Fetching latest changes from remote..."
 git fetch origin
 
@@ -69,8 +69,6 @@ if [ -n "$UNVERSIONED_FILES" ]; then
     echo "$UNVERSIONED_FILES"
 fi
 
-
-
 print_status "Switching to main branch and updating to latest remote version..."
 git checkout main
 git reset --hard origin/main
@@ -81,6 +79,9 @@ print_success "Successfully updated to latest main branch"
 print_status "Current commit:"
 git log --oneline -1
 
+print_status "Stopping existing containers..."
+sudo docker compose down
+
 print_status "Rebuilding Docker images..."
 sudo docker compose build --no-cache
 
@@ -89,6 +90,38 @@ sudo docker compose up -d
 
 print_status "Waiting for containers to start..."
 sleep 10
+
+# Check if database is ready
+print_status "Waiting for database to be ready..."
+max_attempts=30
+attempt=0
+until sudo docker compose exec web python -c "import django; django.setup(); from django.db import connection; connection.ensure_connection()" 2>/dev/null; do
+    attempt=$((attempt + 1))
+    if [ $attempt -eq $max_attempts ]; then
+        print_error "Database connection timeout!"
+        sudo docker compose logs db
+        exit 1
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+print_status "Running database migrations..."
+if sudo docker compose exec web python manage.py migrate; then
+    print_success "Database migrations completed successfully!"
+else
+    print_error "Database migrations failed!"
+    sudo docker compose logs web
+    exit 1
+fi
+
+print_status "Collecting static files..."
+if sudo docker compose exec web python manage.py collectstatic --noinput; then
+    print_success "Static files collected successfully!"
+else
+    print_warning "Static files collection failed (non-critical)"
+fi
 
 # Check if containers are running
 if sudo docker compose ps | grep -q "Up"; then
