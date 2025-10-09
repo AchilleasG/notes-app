@@ -328,5 +328,138 @@
             document.getElementById('lock_password').required = this.checked;
         });
     }
+
+    // Client-side encryption
+    class NoteEncryption {
+        constructor() {
+            this.algorithm = 'AES-GCM';
+            this.keyLength = 256;
+            this.ivLength = 12;
+            this.saltLength = 16;
+            this.iterations = 100000;
+        }
+
+        generateSalt() {
+            return crypto.getRandomValues(new Uint8Array(this.saltLength));
+        }
+
+        generateIV() {
+            return crypto.getRandomValues(new Uint8Array(this.ivLength));
+        }
+
+        async deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const passwordKey = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            return crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: this.iterations,
+                    hash: 'SHA-256'
+                },
+                passwordKey,
+                {
+                    name: this.algorithm,
+                    length: this.keyLength
+                },
+                false,
+                ['encrypt']
+            );
+        }
+
+        async encrypt(text, password) {
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                
+                const salt = this.generateSalt();
+                const iv = this.generateIV();
+                const key = await this.deriveKey(password, salt);
+
+                const encryptedData = await crypto.subtle.encrypt(
+                    {
+                        name: this.algorithm,
+                        iv: iv
+                    },
+                    key,
+                    data
+                );
+
+                // Combine only iv + encrypted data (salt stored separately)
+                const result = new Uint8Array(iv.length + encryptedData.byteLength);
+                result.set(iv, 0);
+                result.set(new Uint8Array(encryptedData), iv.length);
+
+                return {
+                    encrypted: btoa(String.fromCharCode(...result)),
+                    salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+                };
+            } catch (error) {
+                console.error('Encryption failed:', error);
+                throw new Error('Failed to encrypt content');
+            }
+        }
+    }
+
+    const noteEncryption = new NoteEncryption();
+
+    // Handle form submission with encryption
+    document.getElementById('noteForm').addEventListener('submit', async function(e) {
+        const isLocked = document.getElementById('is_locked');
+        const password = document.getElementById('lock_password');
+        const content = document.getElementById('content');
+        
+        if (isLocked && isLocked.checked && password && password.value) {
+            e.preventDefault(); // Stop the normal form submission
+            
+            try {
+                // Encrypt the content
+                const result = await noteEncryption.encrypt(content.value, password.value);
+                
+                // Create hidden fields for encrypted data
+                let encryptedContentField = document.getElementById('encrypted_content');
+                let saltField = document.getElementById('salt_field');
+                
+                if (!encryptedContentField) {
+                    encryptedContentField = document.createElement('input');
+                    encryptedContentField.type = 'hidden';
+                    encryptedContentField.name = 'encrypted_content';
+                    encryptedContentField.id = 'encrypted_content';
+                    this.appendChild(encryptedContentField);
+                }
+                
+                if (!saltField) {
+                    saltField = document.createElement('input');
+                    saltField.type = 'hidden';
+                    saltField.name = 'salt';
+                    saltField.id = 'salt_field';
+                    this.appendChild(saltField);
+                }
+                
+                // Set the encrypted values
+                encryptedContentField.value = result.encrypted;
+                saltField.value = result.salt;
+                
+                // Clear the original content field (we'll send encrypted instead)
+                content.value = '';
+                
+                // Clear the password field (don't send password to server)
+                password.value = '';
+                
+                // Now submit the form
+                this.submit();
+            } catch (error) {
+                alert('Encryption failed: ' + error.message);
+            }
+        }
+        // If not locked or no password, submit normally
+    });
 </script>
 {% endblock %}

@@ -188,13 +188,13 @@
 
     {% if notes %}
         {% for note in notes %}
-            <div class="note-card {% if note.is_locked %}locked{% endif %}" onclick="window.location='{% if note.is_locked %}{% url 'note_unlock' note.pk %}?next=note_view{% else %}{% url 'note_view' note.pk %}{% endif %}'">
+            <div class="note-card {% if note.is_locked %}locked{% endif %}" onclick="window.location='{% url 'note_view' note.pk %}'">
                 <h3>
                     {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
                     {{ note.title }}
                 </h3>
                 {% if note.is_locked %}
-                    <p class="locked-message">This note is encrypted. Unlock to view contents.</p>
+                    <p class="locked-message">This note is encrypted. Click to view and decrypt.</p>
                 {% else %}
                     <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
                 {% endif %}
@@ -205,11 +205,7 @@
                     {% endif %}
                 </div>
                 <div class="note-actions" onclick="event.stopPropagation()">
-                    {% if note.is_locked %}
-                        <a href="{% url 'note_unlock' note.pk %}?next=note_view" class="btn btn-primary">Unlock & View</a>
-                    {% else %}
-                        <a href="{% url 'note_view' note.pk %}" class="btn btn-primary">View</a>
-                    {% endif %}
+                    <a href="{% url 'note_view' note.pk %}" class="btn btn-primary">{% if note.is_locked %}View & Decrypt{% else %}View{% endif %}</a>
                     <a href="{% url 'note_edit' note.pk %}" class="btn btn-secondary">Edit</a>
                     <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
                 </div>
