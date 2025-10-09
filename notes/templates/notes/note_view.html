@@ -6,421 +6,257 @@
 
 {% block extra_css %}
 <style>
-    /* Main layout container */
-    .note-layout {
+    /* Mobile-first layout */
+    .note-view-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Quick actions bar at top */
+    .quick-actions {
         display: flex;
-        height: calc(100vh - 80px); /* Adjust for header height */
-        position: relative;
-    }
-    
-    /* Sidebar styles */
-    .sidebar {
-        width: 300px;
-        background: var(--bg-tertiary);
-        border-right: 1px solid var(--border-primary);
-        transition: transform 0.3s ease;
-        z-index: 10;
-        overflow-y: auto;
-        height: 100%;
-    }
-    
-    .sidebar.collapsed {
-        transform: translateX(-100%);
-    }
-    
-    .sidebar-header {
-        padding: 20px;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        padding-bottom: 16px;
         border-bottom: 1px solid var(--border-primary);
-        background: var(--bg-secondary);
-        position: sticky;
-        top: 0;
-        z-index: 5;
     }
     
-    .sidebar-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-        margin-bottom: 16px;
+    .quick-actions .btn {
+        flex: 1;
+        min-width: 100px;
     }
     
-    .create-note-btn {
-        display: block;
+    @media (min-width: 640px) {
+        .quick-actions .btn {
+            flex: 0;
+        }
+    }
+    
+    /* Notes dropdown for mobile navigation */
+    .notes-nav {
+        margin-bottom: 20px;
+    }
+    
+    .notes-dropdown {
         width: 100%;
         padding: 12px 16px;
-        background: var(--btn-primary-bg);
-        color: var(--bg-secondary);
-        text-decoration: none;
+        border: 1px solid var(--border-primary);
         border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        text-align: center;
-        transition: all 0.2s ease;
-        border: 1px solid transparent;
-    }
-    
-    [data-theme="dark"] .create-note-btn {
+        background: var(--bg-secondary);
         color: var(--text-primary);
-    }
-    
-    .create-note-btn:hover {
-        background: var(--btn-primary-hover);
-        color: var(--bg-secondary);
-        text-decoration: none;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px var(--shadow-md);
-    }
-    
-    [data-theme="dark"] .create-note-btn:hover {
-        color: var(--text-primary);
-    }
-    
-    .notes-list {
-        padding: 0;
-    }
-    
-    .note-item {
-        display: block;
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--border-secondary);
-        text-decoration: none;
-        color: var(--text-primary);
-        transition: all 0.2s ease;
-        position: relative;
-    }
-    
-    .note-item:hover {
-        background: var(--border-secondary);
-        color: var(--text-primary);
-        text-decoration: none;
-    }
-    
-    .note-item.active {
-        background: var(--btn-primary-bg);
-        color: var(--bg-secondary);
-    }
-    
-    [data-theme="dark"] .note-item.active {
-        color: var(--text-primary);
-    }
-    
-    .note-item.active:hover {
-        background: var(--btn-primary-hover);
-        color: var(--bg-secondary);
-    }
-    
-    [data-theme="dark"] .note-item.active:hover {
-        color: var(--text-primary);
-    }
-    
-    .note-item-title {
-        font-weight: 500;
-        font-size: 14px;
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .note-item-meta {
-        font-size: 12px;
-        opacity: 0.7;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .lock-icon {
-        font-size: 12px;
-    }
-    
-    /* Toggle button */
-    .sidebar-toggle {
-        position: fixed;
-        top: 100px;
-        left: 20px;
-        background: var(--btn-primary-bg);
-        color: var(--bg-secondary);
-        border: none;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+        font-size: 15px;
+        font-family: inherit;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        z-index: 20;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px var(--shadow-lg);
+        transition: all 0.2s ease;
     }
     
-    [data-theme="dark"] .sidebar-toggle {
-        color: var(--text-primary);
+    .notes-dropdown:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
-    .sidebar-toggle:hover {
-        background: var(--btn-primary-hover);
-        transform: scale(1.1);
-    }
-    
-    .sidebar-toggle.with-sidebar {
-        left: 320px;
-    }
-    
-    /* Main content area */
-    .content-area {
-        flex: 1;
-        overflow-y: auto;
-        transition: margin-left 0.3s ease;
-    }
-    
+    /* Main content */
     .note-view-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 40px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--border-primary);
+    }
+    
+    @media (min-width: 640px) {
+        .note-view-container {
+            padding: 32px;
+        }
     }
     
     .note-header {
-        margin-bottom: 32px;
-        padding-bottom: 24px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
         border-bottom: 1px solid var(--border-secondary);
     }
     
     .note-title {
         color: var(--text-primary);
-        font-size: 32px;
+        font-size: 24px;
         font-weight: 600;
         margin-bottom: 12px;
         word-wrap: break-word;
-        letter-spacing: -0.5px;
-        line-height: 1.2;
+        line-height: 1.3;
+    }
+    
+    @media (min-width: 640px) {
+        .note-title {
+            font-size: 28px;
+        }
     }
     
     .note-title .lock-badge {
-        font-size: 24px;
-        margin-right: 8px;
+        font-size: 20px;
+        margin-right: 6px;
     }
     
     .note-meta {
-        font-size: 14px;
+        font-size: 13px;
         color: var(--text-tertiary);
         display: flex;
-        gap: 12px;
+        gap: 8px;
+        flex-wrap: wrap;
     }
     
     .note-content {
-        background: var(--bg-secondary);
         padding: 0;
-        margin-bottom: 32px;
+        margin-bottom: 24px;
         line-height: 1.7;
         color: var(--text-primary);
         font-size: 16px;
     }
     
-    /* Markdown styling */
+    /* Markdown content styling */
     .note-content h1, .note-content h2, .note-content h3, 
     .note-content h4, .note-content h5, .note-content h6 {
-        margin-top: 32px;
-        margin-bottom: 16px;
+        margin-top: 24px;
+        margin-bottom: 12px;
         font-weight: 600;
         color: var(--text-primary);
-        letter-spacing: -0.3px;
         line-height: 1.3;
     }
     
     .note-content h1 { 
-        font-size: 28px; 
-        border-bottom: 1px solid var(--border-secondary); 
-        padding-bottom: 12px; 
-    }
-    
-    .note-content h2 { 
         font-size: 24px; 
         border-bottom: 1px solid var(--border-secondary); 
         padding-bottom: 10px; 
     }
     
-    .note-content h3 { font-size: 20px; }
+    .note-content h2 { 
+        font-size: 21px; 
+        border-bottom: 1px solid var(--border-secondary); 
+        padding-bottom: 8px; 
+    }
+    
+    .note-content h3 { font-size: 18px; }
+    .note-content h4 { font-size: 16px; }
     
     .note-content ul, .note-content ol {
-        margin-left: 24px;
-        margin-bottom: 20px;
+        margin-left: 20px;
+        margin-bottom: 16px;
     }
     
     .note-content li {
-        margin-bottom: 8px;
-    }
-    
-    /* Task list (checkbox) styling */
-    .note-content .task-list-item {
-        list-style: none;
-        margin-left: -24px;
-        position: relative;
-    }
-    
-    /* Make sure checkboxes are visible and functional */
-    .note-content .task-list-item input[type="checkbox"] {
-        margin-right: 10px;
-        margin-left: 0;
-        position: relative;
-        top: 2px;
-        cursor: pointer;
-        width: 16px;
-        height: 16px;
-        appearance: auto; /* Use browser default appearance */
-        -webkit-appearance: checkbox; /* WebKit browsers */
-        -moz-appearance: checkbox; /* Firefox */
-    }
-    
-    /* Hide the custom task-list-indicator since we want native checkboxes */
-    .note-content .task-list-item .task-list-indicator {
-        display: none;
-    }
-    
-    /* Style for completed tasks - pymdownx.tasklist structure */
-    .note-content .task-list-item input[type="checkbox"]:checked {
-        /* Checkbox itself styling */
-    }
-    
-    .note-content .task-list-item:has(input[type="checkbox"]:checked) {
-        text-decoration: line-through;
-        color: var(--text-tertiary);
-    }
-    
-    /* Fallback for browsers that don't support :has() */
-    .note-content .task-list-item input[type="checkbox"]:checked ~ span,
-    .note-content .task-list-item input[type="checkbox"]:checked + label {
-        text-decoration: line-through;
-        color: var(--text-tertiary);
-    }
-    
-    .note-content table {
-        border-collapse: collapse;
-        width: 100%;
-        margin: 20px 0;
-        border: 1px solid var(--border-primary);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    .note-content th, .note-content td {
-        border: 1px solid var(--border-primary);
-        padding: 12px 16px;
-        text-align: left;
-    }
-    
-    .note-content th {
-        background: var(--bg-tertiary);
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .note-content tr:nth-child(even) {
-        background: var(--bg-tertiary);
-    }
-    
-    .note-content img {
-        max-width: 100%;
-        height: auto;
-        border-radius: 8px;
-        margin: 24px 0;
-    }
-    
-    .note-content code {
-        background: var(--bg-tertiary);
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
-        font-size: 0.9em;
-        color: var(--text-primary);
-    }
-    
-    .note-content pre {
-        background: #1a1a1a;
-        color: #e8e8e8;
-        padding: 20px;
-        border-radius: 8px;
-        overflow-x: auto;
-        margin: 24px 0;
-        font-size: 14px;
-    }
-    
-    [data-theme="dark"] .note-content pre {
-        background: #0d0d0d;
-        color: #f0f0f0;
-    }
-    
-    .note-content pre code {
-        background: transparent;
-        padding: 0;
-        color: inherit;
-    }
-    
-    .note-content blockquote {
-        border-left: 3px solid var(--btn-primary-bg);
-        padding-left: 20px;
-        margin: 24px 0;
-        color: var(--text-secondary);
-        font-style: italic;
+        margin-bottom: 6px;
     }
     
     .note-content p {
         margin-bottom: 16px;
     }
     
+    /* Task list styling */
+    .note-content .task-list-item {
+        list-style: none;
+        margin-left: -20px;
+    }
+    
+    .note-content .task-list-item input[type="checkbox"] {
+        margin-right: 8px;
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .note-content .task-list-item:has(input[type="checkbox"]:checked) {
+        text-decoration: line-through;
+        opacity: 0.6;
+    }
+    
+    /* Table styling */
+    .note-content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 15px;
+    }
+    
+    .note-content th, .note-content td {
+        border: 1px solid var(--border-primary);
+        padding: 10px 12px;
+        text-align: left;
+    }
+    
+    .note-content th {
+        background: var(--bg-tertiary);
+        font-weight: 600;
+    }
+    
+    .note-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 16px 0;
+    }
+    
+    /* Code styling */
+    .note-content code {
+        background: var(--bg-tertiary);
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+    
+    .note-content pre {
+        background: var(--bg-tertiary);
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 16px 0;
+        font-size: 14px;
+        border: 1px solid var(--border-primary);
+    }
+    
+    .note-content pre code {
+        background: transparent;
+        padding: 0;
+    }
+    
+    .note-content blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 16px;
+        margin: 16px 0;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+    
     .note-content a {
-        color: #1a1a1a;
+        color: var(--accent-primary);
         text-decoration: underline;
-        text-underline-offset: 3px;
+        text-underline-offset: 2px;
     }
     
     .note-content a:hover {
-        color: #666;
+        color: var(--accent-hover);
     }
     
+    /* Note actions */
     .note-actions {
         display: flex;
-        gap: 10px;
-        padding-top: 24px;
-        border-top: 1px solid #f0f0f0;
+        gap: 8px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-secondary);
+        flex-wrap: wrap;
     }
     
-    .btn-warning {
-        background: #f59e0b;
-        color: white;
+    .note-actions .btn {
+        flex: 1;
+        min-width: 100px;
     }
     
-    .btn-warning:hover {
-        background: #d97706;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-    
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .sidebar {
-            position: fixed;
-            height: 100vh;
-            top: 0;
-            z-index: 30;
-        }
-        
-        .content-area {
-            margin-left: 0;
-        }
-        
-        .sidebar-toggle {
-            left: 20px;
-        }
-        
-        .sidebar-toggle.with-sidebar {
-            left: 20px;
-        }
-        
-        .note-view-container {
-            padding: 20px;
+    @media (min-width: 640px) {
+        .note-actions .btn {
+            flex: 0;
         }
     }
     
@@ -431,11 +267,12 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
+        padding: 20px;
     }
     
     .password-modal.hidden {
@@ -443,42 +280,54 @@
     }
     
     .password-modal-content {
-        background: white;
-        padding: 30px;
+        background: var(--bg-secondary);
+        padding: 24px;
         border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 10px 40px var(--shadow-lg);
         max-width: 400px;
-        width: 90%;
+        width: 100%;
     }
     
     .password-modal h3 {
-        margin: 0 0 20px 0;
-        color: #1a1a1a;
+        margin: 0 0 16px 0;
+        color: var(--text-primary);
         font-size: 18px;
+        font-weight: 600;
     }
     
     .password-input {
         width: 100%;
-        padding: 12px;
-        border: 1px solid #e8e8e8;
-        border-radius: 6px;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
         font-size: 16px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        font-family: inherit;
+    }
+    
+    .password-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
     .password-buttons {
         display: flex;
-        gap: 10px;
-        justify-content: flex-end;
+        gap: 8px;
+    }
+    
+    .password-buttons .btn {
+        flex: 1;
     }
     
     .encrypted-placeholder {
-        background: #f8f9fa;
-        border: 2px dashed #e8e8e8;
-        border-radius: 8px;
-        padding: 40px;
+        background: var(--bg-tertiary);
+        border: 2px dashed var(--border-primary);
+        border-radius: 12px;
+        padding: 40px 20px;
         text-align: center;
-        color: #666;
         margin: 20px 0;
     }
     
@@ -486,100 +335,196 @@
         font-size: 48px;
         margin-bottom: 16px;
         display: block;
+        opacity: 0.6;
     }
     
-    .decrypt-btn {
-        background: #1a1a1a;
+    .encrypted-placeholder h3 {
+        color: var(--text-primary);
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+    
+    .encrypted-placeholder p {
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+    
+    /* === SIDEBAR === */
+    .notes-sidebar {
+        position: fixed;
+        top: 0;
+        left: -320px;
+        width: 320px;
+        height: 100vh;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border-primary);
+        box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+        transition: left 0.3s ease;
+        z-index: 9999;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    
+    .notes-sidebar.open {
+        left: 0;
+    }
+    
+    .sidebar-header-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+    }
+    
+    .sidebar-note-link {
+        display: block;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--text-primary);
+        background: var(--bg-tertiary);
+        transition: all 0.2s;
+    }
+    
+    .sidebar-note-link:hover {
+        background: var(--border-primary);
+    }
+    
+    .sidebar-note-link.active {
+        background: var(--accent-primary);
+        color: white;
+    }
+    
+    .sidebar-note-title {
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+    
+    .sidebar-note-date {
+        font-size: 12px;
+        color: var(--text-tertiary);
+    }
+    
+    .sidebar-toggle-btn {
+        position: fixed;
+        bottom: 24px;
+        left: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--accent-primary);
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 6px;
+        font-size: 24px;
         cursor: pointer;
-        font-size: 14px;
-        margin-top: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
     }
     
-    .decrypt-btn:hover {
-        background: #333;
+    .sidebar-toggle-btn:hover {
+        transform: scale(1.1);
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 9997;
+        display: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="note-layout">
-    <!-- Sidebar Toggle Button -->
-    <button class="sidebar-toggle" id="sidebarToggle">
-        <span id="toggleIcon">☰</span>
-    </button>
-    
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h3 class="sidebar-title">📚 All Notes</h3>
-            <a href="{% url 'note_create' %}" class="create-note-btn">
-                ✏️ Create New Note
-            </a>
-        </div>
-        <div class="notes-list">
-            {% for n in all_notes %}
-                <a href="{% url 'note_view' n.pk %}" class="note-item {% if n.pk == note.pk %}active{% endif %}">
-                    <div class="note-item-title">
-                        {% if n.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
-                        {{ n.title|truncatechars:30 }}
-                    </div>
-                    <div class="note-item-meta">
-                        <span>{{ n.updated_at|date:"M d, Y" }}</span>
-                    </div>
-                </a>
-            {% empty %}
-                <div class="note-item">
-                    <div class="note-item-title">No notes yet</div>
-                    <div class="note-item-meta">Create your first note!</div>
-                </div>
-            {% endfor %}
-        </div>
+<div class="note-view-wrapper">
+    <!-- Quick actions at top -->
+    <div class="quick-actions">
+        <a href="{% url 'note_list' %}" class="btn btn-secondary">← All Notes</a>
+        <a href="{% url 'note_create' %}" class="btn btn-primary">+ New</a>
+        <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
+        <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
     </div>
     
-    <!-- Main Content Area -->
-    <div class="content-area" id="contentArea">
-        <div class="note-view-container">
-            <div class="note-header">
-                <h1 class="note-title">
-                    {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
-                    {{ note.title }}
-                </h1>
-                <div class="note-meta">
-                    Created: {{ note.created_at|date:"M d, Y H:i" }}
-                    {% if note.updated_at != note.created_at %}
-                        | Updated: {{ note.updated_at|date:"M d, Y H:i" }}
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div id="noteContent" class="note-content">
-                {% if note.is_locked %}
-                    <div class="encrypted-placeholder">
-                        <span class="lock-icon">🔒</span>
-                        <h3>This note is encrypted</h3>
-                        <p>Enter your password to decrypt and view the content.</p>
-                        <button class="decrypt-btn" onclick="showPasswordModal()">
-                            🔓 Decrypt Note
-                        </button>
-                    </div>
-                {% else %}
-                    {{ note.content|markdown }}
+    <!-- Navigation dropdown for switching between notes -->
+    <div class="notes-nav">
+        <select class="notes-dropdown" onchange="if(this.value) window.location.href=this.value;">
+            <option value="">Switch to another note...</option>
+            {% for n in all_notes %}
+                <option value="{% url 'note_view' n.pk %}" {% if n.pk == note.pk %}selected{% endif %}>
+                    {% if n.is_locked %}🔒 {% endif %}{{ n.title|truncatechars:50 }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <!-- Main note content -->
+    <div class="note-view-container">
+        <div class="note-header">
+            <h1 class="note-title">
+                {% if note.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
+                {{ note.title }}
+            </h1>
+            <div class="note-meta">
+                <span>Created {{ note.created_at|date:"M d, Y" }}</span>
+                {% if note.updated_at != note.created_at %}
+                    <span>• Updated {{ note.updated_at|date:"M d, Y" }}</span>
                 {% endif %}
             </div>
-            
-            <div class="note-actions">
-                <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
-                <a href="{% url 'note_history' note.pk %}" class="btn btn-success">📜 History</a>
-                <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
-                <a href="{% url 'note_list' %}" class="btn btn-secondary">Back to Notes</a>
-            </div>
+        </div>
+        
+        <div id="noteContent" class="note-content">
+            {% if note.is_locked %}
+                <div class="encrypted-placeholder">
+                    <span class="lock-icon">🔒</span>
+                    <h3>This note is encrypted</h3>
+                    <p>Enter your password to decrypt and view the content.</p>
+                    <button class="btn btn-primary" onclick="showPasswordModal()">
+                        🔓 Decrypt Note
+                    </button>
+                </div>
+            {% else %}
+                {{ note.content|markdown }}
+            {% endif %}
+        </div>
+        
+        <div class="note-actions">
+            <a href="{% url 'note_history' note.pk %}" class="btn btn-secondary">📜 History</a>
         </div>
     </div>
 </div>
+
+<!-- Sidebar -->
+<div class="notes-sidebar" id="notesSidebar">
+    <div class="sidebar-header-title">📚 All Notes</div>
+    {% for n in all_notes %}
+        <a href="{% url 'note_view' n.pk %}" class="sidebar-note-link {% if n.pk == note.pk %}active{% endif %}">
+            <div class="sidebar-note-title">
+                {% if n.is_locked %}🔒 {% endif %}{{ n.title|truncatechars:40 }}
+            </div>
+            <div class="sidebar-note-date">{{ n.updated_at|date:"M d, Y" }}</div>
+        </a>
+    {% endfor %}
+</div>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Toggle Button -->
+<button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
+    ☰
+</button>
 
 <!-- Password Modal -->
 <div id="passwordModal" class="password-modal hidden">
@@ -1068,38 +1013,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.head.appendChild(script);
     }
-    
-    // Sidebar toggle functionality
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebar = document.getElementById('sidebar');
-    const toggleIcon = document.getElementById('toggleIcon');
-    
-    // Load saved sidebar state
-    const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    if (sidebarCollapsed) {
-        sidebar.classList.add('collapsed');
-        sidebarToggle.classList.remove('with-sidebar');
-        toggleIcon.textContent = '☰';
-    } else {
-        sidebarToggle.classList.add('with-sidebar');
-        toggleIcon.textContent = '✕';
-    }
-    
-    sidebarToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        
-        if (isCollapsed) {
-            sidebarToggle.classList.remove('with-sidebar');
-            toggleIcon.textContent = '☰';
-        } else {
-            sidebarToggle.classList.add('with-sidebar');
-            toggleIcon.textContent = '✕';
-        }
-        
-        // Save state to localStorage
-        localStorage.setItem('sidebarCollapsed', isCollapsed);
-    });
 
     // Initialize checkbox handlers if note is not locked or auto-decrypt if password is cached
     if (!noteData.isLocked) {
@@ -1107,11 +1020,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add a small delay to ensure DOM is fully rendered
         setTimeout(() => {
             initializeCheckboxHandlers();
-            // Debug: log the actual DOM structure
-            const noteContent = document.getElementById('noteContent');
-            console.log('Note content HTML:', noteContent.innerHTML);
-            console.log('Task list items found:', document.querySelectorAll('#noteContent .task-list-item').length);
-            console.log('Checkboxes found:', document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]').length);
         }, 100);
     } else {
         console.log('Note is locked, checking for cached password');
@@ -1134,6 +1042,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // === SIDEBAR FUNCTIONALITY ===
+    const sidebar = document.getElementById('notesSidebar');
+    const sidebarToggle = document.getElementById('sidebarToggleBtn');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('active');
+        sidebarToggle.textContent = '✕';
+    }
+    
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+        sidebarToggle.textContent = '☰';
+    }
+    
+    sidebarToggle.addEventListener('click', function() {
+        if (sidebar.classList.contains('open')) {
+            closeSidebar();
+        } else {
+            openSidebar();
+        }
+    });
+    
+    sidebarOverlay.addEventListener('click', closeSidebar);
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+            closeSidebar();
+        }
+    });
 });
 
 console.log('Script loaded, functions defined');

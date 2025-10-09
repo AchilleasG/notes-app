@@ -63,37 +63,27 @@
     .form-group input:focus,
     .form-group textarea:focus {
         outline: none;
-        border-color: var(--btn-primary-bg);
-        box-shadow: 0 0 0 3px var(--shadow-sm);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
     .form-actions {
         margin-top: 24px;
         display: flex;
-        gap: 12px;
+        gap: 8px;
         justify-content: flex-end;
-    }
-    
-    .form-actions button {
-        padding: 10px 24px;
-        font-size: 14px;
+        flex-wrap: wrap;
     }
     
     .errorlist {
         list-style: none;
-        background: #fef2f2;
-        color: #991b1b;
+        background: var(--danger-light);
+        color: var(--danger);
         padding: 12px 16px;
         border-radius: 8px;
         margin-bottom: 20px;
-        border-left: 3px solid #ef4444;
+        border-left: 4px solid var(--danger);
         font-size: 14px;
-    }
-    
-    [data-theme="dark"] .errorlist {
-        background: #450a0a;
-        color: #fca5a5;
-        border-left-color: #dc2626;
     }
     
     .helptext {
@@ -186,7 +176,7 @@
             </div>
             
             <div class="form-actions">
-                <a href="{% url 'note_list' %}" class="btn btn-white">Cancel</a>
+                <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
             </div>
         </form>
@@ -228,7 +218,7 @@
             </div>
             
             <div class="form-actions">
-                <a href="{% url 'note_list' %}" class="btn btn-white">Cancel</a>
+                <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" name="change_password" class="btn btn-primary">Change Password</button>
             </div>
         </form>

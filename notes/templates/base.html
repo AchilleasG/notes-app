@@ -5,164 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Personal Notebook{% endblock %}</title>
     <style>
+        /* Light Mode Variables */
         :root {
-            --bg-primary: #f8f9fa;
+            --bg-primary: #fafafa;
             --bg-secondary: #ffffff;
-            --bg-tertiary: #f1f3f4;
-            --text-primary: #1a1a1a;
-            --text-secondary: #5f6368;
-            --text-tertiary: #80868b;
-            --border-primary: #e8eaed;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #1f1f1f;
+            --text-secondary: #5f5f5f;
+            --text-tertiary: #8f8f8f;
+            --border-primary: #e0e0e0;
             --border-secondary: #f0f0f0;
-            --border-hover: #d2d5da;
-            --shadow-sm: rgba(0, 0, 0, 0.08);
-            --shadow-md: rgba(0, 0, 0, 0.12);
-            --shadow-lg: rgba(0, 0, 0, 0.24);
-            --header-bg: rgba(255, 255, 255, 0.95);
-            --scrollbar-track: #f1f1f1;
-            --scrollbar-thumb: #dadce0;
-            --scrollbar-thumb-hover: #bdc1c6;
+            --border-hover: #d0d0d0;
+            --accent-primary: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-light: #dbeafe;
+            --success: #16a34a;
+            --success-hover: #15803d;
+            --success-light: #dcfce7;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --danger-light: #fee2e2;
+            --warning: #ea580c;
+            --warning-hover: #c2410c;
+            --warning-light: #fed7aa;
+            --shadow-sm: rgba(0, 0, 0, 0.05);
+            --shadow-md: rgba(0, 0, 0, 0.1);
+            --shadow-lg: rgba(0, 0, 0, 0.15);
         }
         
-        /* Blue Theme (Default) */
-        [data-accent="blue"],
-        :root:not([data-accent]) {
-            --accent-primary: #4285f4;
-            --accent-secondary: #34a853;
-            --accent-danger: #ea4335;
-            --accent-warning: #fbbc04;
-            --accent-hover: #3367d6;
-            --btn-primary-bg: #4285f4;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #3367d6;
-        }
-        
-        /* Purple Theme */
-        [data-accent="purple"] {
-            --accent-primary: #8b5cf6;
-            --accent-secondary: #10b981;
-            --accent-danger: #ef4444;
-            --accent-warning: #f59e0b;
-            --accent-hover: #7c3aed;
-            --btn-primary-bg: #8b5cf6;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #7c3aed;
-        }
-        
-        /* Green Theme */
-        [data-accent="green"] {
-            --accent-primary: #10b981;
-            --accent-secondary: #059669;
-            --accent-danger: #ef4444;
-            --accent-warning: #f59e0b;
-            --accent-hover: #059669;
-            --btn-primary-bg: #10b981;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #059669;
-        }
-        
-        /* Orange Theme */
-        [data-accent="orange"] {
-            --accent-primary: #f97316;
-            --accent-secondary: #10b981;
-            --accent-danger: #ef4444;
-            --accent-warning: #f59e0b;
-            --accent-hover: #ea580c;
-            --btn-primary-bg: #f97316;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #ea580c;
-        }
-        
-        /* Pink Theme */
-        [data-accent="pink"] {
-            --accent-primary: #ec4899;
-            --accent-secondary: #10b981;
-            --accent-danger: #ef4444;
-            --accent-warning: #f59e0b;
-            --accent-hover: #db2777;
-            --btn-primary-bg: #ec4899;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #db2777;
-        }
-        
+        /* Dark Mode Variables */
         [data-theme="dark"] {
-            --bg-primary: #0d1117;
-            --bg-secondary: #161b22;
-            --bg-tertiary: #21262d;
-            --text-primary: #f0f6fc;
-            --text-secondary: #8b949e;
-            --text-tertiary: #6e7681;
-            --border-primary: #30363d;
-            --border-secondary: #21262d;
-            --border-hover: #484f58;
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a8a8a8;
+            --text-tertiary: #787878;
+            --border-primary: #333333;
+            --border-secondary: #282828;
+            --border-hover: #404040;
+            --accent-primary: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #1e3a8a;
+            --success: #22c55e;
+            --success-hover: #16a34a;
+            --success-light: #14532d;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-light: #7f1d1d;
+            --warning: #f97316;
+            --warning-hover: #ea580c;
+            --warning-light: #7c2d12;
             --shadow-sm: rgba(0, 0, 0, 0.3);
             --shadow-md: rgba(0, 0, 0, 0.5);
             --shadow-lg: rgba(0, 0, 0, 0.7);
-            --header-bg: rgba(22, 27, 34, 0.95);
-            --scrollbar-track: #161b22;
-            --scrollbar-thumb: #484f58;
-            --scrollbar-thumb-hover: #6e7681;
-        }
-        
-        /* Dark Blue Theme */
-        [data-theme="dark"][data-accent="blue"],
-        [data-theme="dark"]:not([data-accent]) {
-            --accent-primary: #58a6ff;
-            --accent-secondary: #3fb950;
-            --accent-danger: #f85149;
-            --accent-warning: #d29922;
-            --accent-hover: #409eff;
-            --btn-primary-bg: #58a6ff;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #409eff;
-        }
-        
-        /* Dark Purple Theme */
-        [data-theme="dark"][data-accent="purple"] {
-            --accent-primary: #a78bfa;
-            --accent-secondary: #34d399;
-            --accent-danger: #f87171;
-            --accent-warning: #fbbf24;
-            --accent-hover: #8b5cf6;
-            --btn-primary-bg: #7c3aed;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #6d28d9;
-        }
-        
-        /* Dark Green Theme */
-        [data-theme="dark"][data-accent="green"] {
-            --accent-primary: #34d399;
-            --accent-secondary: #10b981;
-            --accent-danger: #f87171;
-            --accent-warning: #fbbf24;
-            --accent-hover: #10b981;
-            --btn-primary-bg: #10b981;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #059669;
-        }
-        
-        /* Dark Orange Theme */
-        [data-theme="dark"][data-accent="orange"] {
-            --accent-primary: #fb923c;
-            --accent-secondary: #34d399;
-            --accent-danger: #f87171;
-            --accent-warning: #fbbf24;
-            --accent-hover: #f97316;
-            --btn-primary-bg: #ea580c;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #c2410c;
-        }
-        
-        /* Dark Pink Theme */
-        [data-theme="dark"][data-accent="pink"] {
-            --accent-primary: #f472b6;
-            --accent-secondary: #34d399;
-            --accent-danger: #f87171;
-            --accent-warning: #fbbf24;
-            --accent-hover: #ec4899;
-            --btn-primary-bg: #db2777;
-            --btn-primary-text: #ffffff;
-            --btn-primary-hover: #be185d;
         }
         
         * {
@@ -176,21 +72,20 @@
             background: var(--bg-primary);
             min-height: 100vh;
             color: var(--text-primary);
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
         
         .container {
-            max-width: 1400px;
+            max-width: 100%;
             margin: 0 auto;
-            background: var(--bg-secondary);
+            background: var(--bg-primary);
             min-height: 100vh;
-            box-shadow: 0 0 40px var(--shadow-sm);
         }
         
         header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-primary);
-            padding: 20px 40px;
+            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -198,31 +93,30 @@
             top: 0;
             z-index: 100;
             backdrop-filter: blur(10px);
-            background: var(--header-bg);
         }
         
         header h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--text-primary);
-            letter-spacing: -0.5px;
+            letter-spacing: -0.3px;
         }
         
         header h1::before {
             content: "📓";
             margin-right: 8px;
-            filter: drop-shadow(0 0 4px var(--accent-primary));
         }
         
         .user-info {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
         
         .user-info span {
             font-size: 14px;
             color: var(--text-secondary);
+            display: none;
         }
         
         .user-info strong {
@@ -230,193 +124,121 @@
             font-weight: 500;
         }
         
+        @media (min-width: 640px) {
+            .user-info span {
+                display: inline;
+            }
+        }
+        
         .theme-toggle {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-primary);
             color: var(--text-primary);
-            padding: 8px 12px;
+            padding: 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
         }
         
         .theme-toggle:hover {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-            color: white;
+            background: var(--border-secondary);
             transform: scale(1.05);
         }
         
-        .accent-picker {
-            position: relative;
-            display: inline-block;
-        }
-        
-        .accent-toggle {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-primary);
-            color: var(--text-primary);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s ease;
-        }
-        
-        .accent-toggle:hover {
-            background: var(--accent-primary);
-            border-color: var(--accent-primary);
-            color: white;
-            transform: scale(1.05);
-        }
-        
-        .accent-dropdown {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 8px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-primary);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 8px 24px var(--shadow-lg);
-            display: none;
-            min-width: 200px;
-            z-index: 1000;
-        }
-        
-        .accent-dropdown.show {
-            display: block;
-            animation: slideDown 0.2s ease;
-        }
-        
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .accent-options {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-        
-        .accent-option {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            border: 2px solid var(--border-primary);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .accent-option:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px var(--shadow-md);
-        }
-        
-        .accent-option.active {
-            border-color: var(--text-primary);
-            box-shadow: 0 0 0 2px var(--accent-primary);
-        }
-        
-        .accent-option.blue { background: linear-gradient(135deg, #4285f4, #3367d6); }
-        .accent-option.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-        .accent-option.green { background: linear-gradient(135deg, #10b981, #059669); }
-        .accent-option.orange { background: linear-gradient(135deg, #f97316, #ea580c); }
-        .accent-option.pink { background: linear-gradient(135deg, #ec4899, #db2777); }
-        
-        .accent-label {
-            color: var(--text-secondary);
-            font-size: 12px;
-            text-align: center;
-            margin-top: 8px;
-            font-weight: 500;
+        .theme-toggle:active {
+            transform: scale(0.95);
         }
         
         .btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             text-decoration: none;
             display: inline-block;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
             transition: all 0.2s ease;
-            letter-spacing: -0.2px;
+            text-align: center;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         
         .btn-primary {
-            background: var(--btn-primary-bg);
-            color: var(--btn-primary-text);
-            border: 1px solid var(--btn-primary-bg);
+            background: var(--accent-primary);
+            color: white;
+            border: 1px solid var(--accent-primary);
         }
         
         .btn-primary:hover {
-            background: var(--btn-primary-hover);
-            border-color: var(--btn-primary-hover);
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px var(--shadow-lg);
+            box-shadow: 0 2px 8px var(--shadow-md);
         }
         
         .btn-success {
-            background: var(--accent-secondary);
+            background: var(--success);
             color: white;
-            border: 1px solid var(--accent-secondary);
+            border: 1px solid var(--success);
         }
         
         .btn-success:hover {
-            background: #2d8f47;
-            border-color: #2d8f47;
+            background: var(--success-hover);
+            border-color: var(--success-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+            box-shadow: 0 2px 8px var(--shadow-md);
         }
         
         .btn-danger {
-            background: var(--accent-danger);
+            background: var(--danger);
             color: white;
-            border: 1px solid var(--accent-danger);
+            border: 1px solid var(--danger);
         }
         
         .btn-danger:hover {
-            background: #d93025;
-            border-color: #d93025;
+            background: var(--danger-hover);
+            border-color: var(--danger-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(234, 67, 53, 0.3);
+            box-shadow: 0 2px 8px var(--shadow-md);
         }
         
         .btn-secondary {
-            background: var(--text-secondary);
-            color: white;
-            border: 1px solid var(--text-secondary);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--text-primary);
-            border-color: var(--text-primary);
-            transform: translateY(-1px);
-        }
-        
-        .btn-white {
-            background: var(--bg-secondary);
+            background: var(--bg-tertiary);
             color: var(--text-primary);
             border: 1px solid var(--border-primary);
         }
         
-        .btn-white:hover {
-            background: var(--bg-tertiary);
+        .btn-secondary:hover {
+            background: var(--border-secondary);
             border-color: var(--border-hover);
-            color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+            border: 1px solid var(--warning);
+        }
+        
+        .btn-warning:hover {
+            background: var(--warning-hover);
+            border-color: var(--warning-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px var(--shadow-md);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
         }
         
         button.btn {
@@ -424,23 +246,29 @@
         }
         
         .content {
-            padding: 40px;
+            padding: 20px;
             max-width: 100%;
         }
         
+        @media (min-width: 640px) {
+            .content {
+                padding: 32px;
+            }
+        }
+        
         .messages {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         
         .message {
-            padding: 14px 18px;
+            padding: 16px;
             border-radius: 8px;
             margin-bottom: 12px;
-            font-size: 14px;
+            font-size: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
-            border-left: 3px solid;
+            border-left: 4px solid;
             animation: slideIn 0.3s ease;
         }
         
@@ -456,36 +284,27 @@
         }
         
         .message.success {
-            background: rgba(52, 168, 83, 0.1);
-            color: var(--accent-secondary);
-            border-color: var(--accent-secondary);
-        }
-        
-        [data-theme="dark"] .message.success {
-            background: rgba(63, 185, 80, 0.15);
-            color: var(--accent-secondary);
+            background: var(--success-light);
+            color: var(--success);
+            border-color: var(--success);
         }
         
         .message.error {
-            background: rgba(234, 67, 53, 0.1);
-            color: var(--accent-danger);
-            border-color: var(--accent-danger);
-        }
-        
-        [data-theme="dark"] .message.error {
-            background: rgba(248, 81, 73, 0.15);
-            color: var(--accent-danger);
+            background: var(--danger-light);
+            color: var(--danger);
+            border-color: var(--danger);
         }
         
         .message.info {
-            background: rgba(66, 133, 244, 0.1);
+            background: var(--accent-light);
             color: var(--accent-primary);
             border-color: var(--accent-primary);
         }
         
-        [data-theme="dark"] .message.info {
-            background: rgba(88, 166, 255, 0.15);
-            color: var(--accent-primary);
+        .message.warning {
+            background: var(--warning-light);
+            color: var(--warning);
+            border-color: var(--warning);
         }
         
         /* Smooth scrolling */
@@ -495,20 +314,21 @@
         
         /* Scrollbar styling */
         ::-webkit-scrollbar {
-            width: 10px;
+            width: 8px;
+            height: 8px;
         }
         
         ::-webkit-scrollbar-track {
-            background: var(--scrollbar-track);
+            background: var(--bg-tertiary);
         }
         
         ::-webkit-scrollbar-thumb {
-            background: var(--scrollbar-thumb);
-            border-radius: 5px;
+            background: var(--border-hover);
+            border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--scrollbar-thumb-hover);
+            background: var(--text-tertiary);
         }
         
         {% block extra_css %}{% endblock %}
@@ -519,33 +339,21 @@
         <header>
             <h1>Personal Notebook</h1>
             <div class="user-info">
-                <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-                    <span id="themeIcon">🌙</span>
-                </button>
-                <div class="accent-picker">
-                    <button class="accent-toggle" id="accentToggle" aria-label="Change accent color">
-                        🎨
-                    </button>
-                    <div class="accent-dropdown" id="accentDropdown">
-                        <div class="accent-options">
-                            <div class="accent-option blue active" data-accent="blue" title="Blue"></div>
-                            <div class="accent-option purple" data-accent="purple" title="Purple"></div>
-                            <div class="accent-option green" data-accent="green" title="Green"></div>
-                            <div class="accent-option orange" data-accent="orange" title="Orange"></div>
-                            <div class="accent-option pink" data-accent="pink" title="Pink"></div>
-                        </div>
-                        <div class="accent-label">Choose your accent color</div>
-                    </div>
-                </div>
                 {% if user.is_authenticated %}
                     <span>Welcome, <strong>{{ user.username }}</strong></span>
-                    <a href="{% url 'profile' %}" class="btn btn-white">Profile</a>
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <a href="{% url 'profile' %}" class="btn btn-secondary">Profile</a>
                     <form method="post" action="{% url 'logout' %}" style="display: inline;">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-white">Logout</button>
+                        <button type="submit" class="btn btn-secondary">Logout</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-white">Login</a>
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                        <span id="themeIcon">🌙</span>
+                    </button>
+                    <a href="{% url 'login' %}" class="btn btn-primary">Login</a>
                 {% endif %}
             </div>
         </header>
@@ -561,32 +369,21 @@
         </div>
     </div>
     <script>
-        // Theme and accent color functionality
+        // Simple theme toggle functionality
         (function() {
             const themeToggle = document.getElementById('themeToggle');
             const themeIcon = document.getElementById('themeIcon');
-            const accentToggle = document.getElementById('accentToggle');
-            const accentDropdown = document.getElementById('accentDropdown');
-            const accentOptions = document.querySelectorAll('.accent-option');
             const html = document.documentElement;
             
-            // Load saved theme and accent or default to light/blue
+            // Load saved theme or default to light
             const savedTheme = localStorage.getItem('theme') || 'light';
-            const savedAccent = localStorage.getItem('accent') || 'blue';
-            
             html.setAttribute('data-theme', savedTheme);
-            html.setAttribute('data-accent', savedAccent);
             updateThemeIcon(savedTheme);
-            updateActiveAccent(savedAccent);
             
             function updateThemeIcon(theme) {
-                themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
-            }
-            
-            function updateActiveAccent(accent) {
-                accentOptions.forEach(option => {
-                    option.classList.toggle('active', option.dataset.accent === accent);
-                });
+                if (themeIcon) {
+                    themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+                }
             }
             
             // Theme toggle
@@ -600,39 +397,6 @@
                     updateThemeIcon(newTheme);
                 });
             }
-            
-            // Accent picker toggle
-            if (accentToggle) {
-                accentToggle.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    accentDropdown.classList.toggle('show');
-                });
-            }
-            
-            // Accent color selection
-            accentOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const newAccent = this.dataset.accent;
-                    html.setAttribute('data-accent', newAccent);
-                    localStorage.setItem('accent', newAccent);
-                    updateActiveAccent(newAccent);
-                    accentDropdown.classList.remove('show');
-                });
-            });
-            
-            // Close accent dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!accentToggle.contains(e.target) && !accentDropdown.contains(e.target)) {
-                    accentDropdown.classList.remove('show');
-                }
-            });
-            
-            // Close dropdown on escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    accentDropdown.classList.remove('show');
-                }
-            });
         })();
     </script>
 </body>
