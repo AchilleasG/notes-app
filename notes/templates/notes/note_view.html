@@ -897,12 +897,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.head.appendChild(script);
     }
     
-    // Sidebar toggle functionality
     const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebar = document.getElementById('sidebar');
-    const toggleIcon = document.getElementById('toggleIcon');
-    
-    // Load saved sidebar state
+const sidebar = document.getElementById('sidebar');
+const toggleIcon = document.getElementById('toggleIcon');
+
+if (sidebarToggle && sidebar && toggleIcon) {
     const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
     if (sidebarCollapsed) {
         sidebar.classList.add('collapsed');
@@ -912,11 +911,11 @@ document.addEventListener('DOMContentLoaded', function() {
         sidebarToggle.classList.add('with-sidebar');
         toggleIcon.textContent = '✕';
     }
-    
+
     sidebarToggle.addEventListener('click', function() {
         sidebar.classList.toggle('collapsed');
         const isCollapsed = sidebar.classList.contains('collapsed');
-        
+
         if (isCollapsed) {
             sidebarToggle.classList.remove('with-sidebar');
             toggleIcon.textContent = '☰';
@@ -924,10 +923,11 @@ document.addEventListener('DOMContentLoaded', function() {
             sidebarToggle.classList.add('with-sidebar');
             toggleIcon.textContent = '✕';
         }
-        
-        // Save state to localStorage
+
         localStorage.setItem('sidebarCollapsed', isCollapsed);
     });
+}
+
 
     // Initialize checkbox handlers if note is not locked or auto-decrypt if password is cached
     if (!noteData.isLocked) {
