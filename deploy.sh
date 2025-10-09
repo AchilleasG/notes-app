@@ -98,21 +98,6 @@ sudo docker compose up -d
 print_status "Waiting for containers to start..."
 sleep 10
 
-# Check if database is ready
-print_status "Waiting for database to be ready..."
-max_attempts=30
-attempt=0
-until sudo docker compose exec web python -c "import django; django.setup(); from django.db import connection; connection.ensure_connection()" 2>/dev/null; do
-    attempt=$((attempt + 1))
-    if [ $attempt -eq $max_attempts ]; then
-        print_error "Database connection timeout!"
-        sudo docker compose logs db
-        exit 1
-    fi
-    echo -n "."
-    sleep 2
-done
-echo ""
 
 print_status "Running database migrations..."
 if sudo docker compose exec web python manage.py migrate; then
