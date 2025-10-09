@@ -78,3 +78,27 @@ class NoteVersionTestCase(TestCase):
         response = self.client.get(f'/history/{note.pk}/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'History: Test Note')
+
+
+class DarkModeTestCase(TestCase):
+    def setUp(self):
+        """Set up test user"""
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.client.login(username='testuser', password='testpass')
+        
+    def test_dark_mode_toggle_present(self):
+        """Test that dark mode toggle button is present in base template"""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        # Check for theme toggle button
+        self.assertContains(response, 'id="themeToggle"')
+        self.assertContains(response, 'id="themeIcon"')
+        
+    def test_dark_mode_css_variables(self):
+        """Test that dark mode CSS variables are defined"""
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        # Check for CSS variables
+        self.assertContains(response, '--bg-primary')
+        self.assertContains(response, '--text-primary')
+        self.assertContains(response, '[data-theme="dark"]')

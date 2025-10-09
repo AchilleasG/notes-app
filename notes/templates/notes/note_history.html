@@ -12,11 +12,11 @@
     .history-header {
         margin-bottom: 32px;
         padding-bottom: 24px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--border-secondary);
     }
     
     .history-title {
-        color: #1a1a1a;
+        color: var(--text-primary);
         font-size: 32px;
         margin-bottom: 12px;
         word-wrap: break-word;
@@ -41,21 +41,21 @@
         top: 0;
         bottom: 0;
         width: 2px;
-        background: #f0f0f0;
+        background: var(--border-secondary);
     }
     
     .timeline-item {
         position: relative;
         margin-bottom: 24px;
-        background: white;
-        border: 1px solid #e8e8e8;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
         border-radius: 12px;
         padding: 24px;
         transition: all 0.2s ease;
     }
     
     .timeline-item:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 16px var(--shadow-md);
         transform: translateY(-2px);
     }
     
@@ -67,33 +67,33 @@
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background: #1a1a1a;
-        border: 3px solid white;
-        box-shadow: 0 0 0 2px #1a1a1a;
+        background: var(--btn-primary-bg);
+        border: 3px solid var(--bg-secondary);
+        box-shadow: 0 0 0 2px var(--btn-primary-bg);
     }
     
     .version-date {
         font-size: 13px;
-        color: #999;
+        color: var(--text-tertiary);
         font-weight: 500;
         margin-bottom: 12px;
     }
     
     .version-title {
         font-size: 18px;
-        color: #1a1a1a;
+        color: var(--text-primary);
         margin-bottom: 12px;
         font-weight: 600;
     }
     
     .version-content {
-        background: #f8f9fa;
-        border: 1px solid #e8e8e8;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
         border-radius: 8px;
         padding: 16px;
         white-space: pre-wrap;
         line-height: 1.6;
-        color: #666;
+        color: var(--text-secondary);
         max-height: 200px;
         overflow-y: auto;
         font-size: 14px;

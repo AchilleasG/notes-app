@@ -11,7 +11,7 @@
     }
     
     .unlock-container h2 {
-        color: #1a1a1a;
+        color: var(--text-primary);
         margin-bottom: 16px;
         font-size: 28px;
         font-weight: 600;
@@ -25,7 +25,7 @@
     }
     
     .unlock-description {
-        color: #666;
+        color: var(--text-secondary);
         margin-bottom: 32px;
         line-height: 1.6;
         font-size: 15px;
@@ -38,7 +38,7 @@
     
     .form-group label {
         display: block;
-        color: #1a1a1a;
+        color: var(--text-primary);
         font-weight: 500;
         margin-bottom: 8px;
         font-size: 14px;
@@ -47,16 +47,18 @@
     .form-group input {
         width: 100%;
         padding: 12px 16px;
-        border: 1px solid #e8e8e8;
+        border: 1px solid var(--border-primary);
         border-radius: 8px;
         font-size: 15px;
         transition: all 0.2s ease;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
     }
     
     .form-group input:focus {
         outline: none;
-        border-color: #1a1a1a;
-        box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.05);
+        border-color: var(--btn-primary-bg);
+        box-shadow: 0 0 0 3px var(--shadow-sm);
     }
     
     .form-actions {

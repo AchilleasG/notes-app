@@ -11,11 +11,11 @@
         align-items: center;
         margin-bottom: 32px;
         padding-bottom: 20px;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--border-secondary);
     }
     
     .header-actions h2 {
-        color: #1a1a1a;
+        color: var(--text-primary);
         font-size: 28px;
         font-weight: 600;
         letter-spacing: -0.5px;
@@ -27,8 +27,8 @@
     }
     
     .note-card {
-        background: white;
-        border: 1px solid #e8e8e8;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
         border-radius: 12px;
         padding: 24px;
         margin-bottom: 16px;
@@ -37,8 +37,8 @@
     }
     
     .note-card:hover {
-        border-color: #d1d1d1;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        border-color: var(--border-hover);
+        box-shadow: 0 4px 16px var(--shadow-md);
         transform: translateY(-2px);
     }
     
@@ -47,8 +47,13 @@
         border-color: #fde047;
     }
     
+    [data-theme="dark"] .note-card.locked {
+        background: #3d3516;
+        border-color: #92782d;
+    }
+    
     .note-card h3 {
-        color: #1a1a1a;
+        color: var(--text-primary);
         margin-bottom: 12px;
         font-size: 20px;
         font-weight: 600;
@@ -64,7 +69,7 @@
     }
     
     .note-preview {
-        color: #666;
+        color: var(--text-secondary);
         margin-bottom: 16px;
         line-height: 1.6;
         max-height: 80px;
@@ -76,19 +81,19 @@
     .note-preview * {
         margin: 0 0 6px 0;
         font-size: 14px;
-        color: #666;
+        color: var(--text-secondary);
     }
     
     .note-preview h1, .note-preview h2, .note-preview h3, 
     .note-preview h4, .note-preview h5, .note-preview h6 {
         font-size: 15px;
         font-weight: 600;
-        color: #333;
+        color: var(--text-primary);
         margin-bottom: 4px;
     }
     
     .note-preview code {
-        background: #f5f5f5;
+        background: var(--bg-tertiary);
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 13px;
@@ -96,7 +101,7 @@
     }
     
     .note-preview pre {
-        background: #f5f5f5;
+        background: var(--bg-tertiary);
         padding: 8px;
         border-radius: 6px;
         font-size: 13px;
@@ -109,7 +114,7 @@
     }
     
     .note-preview blockquote {
-        border-left: 3px solid #d1d1d1;
+        border-left: 3px solid var(--border-hover);
         padding-left: 12px;
         margin: 6px 0;
         font-style: italic;
@@ -117,7 +122,7 @@
     
     .note-meta {
         font-size: 13px;
-        color: #999;
+        color: var(--text-tertiary);
         margin-bottom: 16px;
         display: flex;
         gap: 12px;
@@ -127,7 +132,7 @@
         display: flex;
         gap: 8px;
         padding-top: 12px;
-        border-top: 1px solid #f0f0f0;
+        border-top: 1px solid var(--border-secondary);
     }
     
     .note-actions .btn {
@@ -160,13 +165,13 @@
     .empty-state h3 {
         font-size: 24px;
         margin-bottom: 12px;
-        color: #1a1a1a;
+        color: var(--text-primary);
         font-weight: 600;
     }
     
     .empty-state p {
         margin-bottom: 24px;
-        color: #666;
+        color: var(--text-secondary);
         line-height: 1.6;
     }
     
@@ -175,6 +180,10 @@
         color: #854d0e;
         font-style: italic;
         font-size: 14px;
+    }
+    
+    [data-theme="dark"] .locked-message {
+        color: #fbbf24;
     }
 </style>
 {% endblock %}
