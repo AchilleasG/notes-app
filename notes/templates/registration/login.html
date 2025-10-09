@@ -44,8 +44,8 @@
     
     .form-group input:focus {
         outline: none;
-        border-color: var(--btn-primary-bg);
-        box-shadow: 0 0 0 3px var(--shadow-sm);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
     .form-actions {
@@ -77,20 +77,28 @@
     
     .errorlist {
         list-style: none;
-        background: #fef2f2;
-        color: #991b1b;
+        background: var(--danger-light);
+        color: var(--danger);
         padding: 12px 16px;
         border-radius: 8px;
         margin-bottom: 20px;
-        border-left: 3px solid #ef4444;
+        border-left: 4px solid var(--danger);
         font-size: 14px;
+    }
+    
+    .auth-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 32px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="auth-container">
-    <h2>Login to Your Account</h2>
+    <div class="auth-card">
+        <h2>Login to Your Account</h2>
     <form method="post">
         {% csrf_token %}
         {% if form.errors %}
@@ -117,8 +125,9 @@
             <button type="submit" class="btn btn-primary">Login</button>
         </div>
     </form>
-    <div class="form-footer">
-        Need an account? Contact your administrator.
+        <div class="form-footer">
+            Need an account? Contact your administrator.
+        </div>
     </div>
 </div>
 {% endblock %}

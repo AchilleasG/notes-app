@@ -5,20 +5,25 @@
 {% block extra_css %}
 <style>
     .form-container {
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
     }
     
     .form-container h2 {
         color: var(--text-primary);
-        margin-bottom: 32px;
-        font-size: 28px;
+        margin-bottom: 24px;
+        font-size: 24px;
         font-weight: 600;
-        letter-spacing: -0.5px;
+    }
+    
+    @media (min-width: 640px) {
+        .form-container h2 {
+            font-size: 28px;
+        }
     }
     
     .form-group {
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
     
     .form-group label {
@@ -26,7 +31,7 @@
         color: var(--text-primary);
         font-weight: 500;
         margin-bottom: 8px;
-        font-size: 14px;
+        font-size: 15px;
     }
     
     .form-group input[type="text"],
@@ -35,7 +40,7 @@
         padding: 12px 16px;
         border: 1px solid var(--border-primary);
         border-radius: 8px;
-        font-size: 15px;
+        font-size: 16px;
         font-family: inherit;
         transition: all 0.2s ease;
         background: var(--bg-secondary);
@@ -45,22 +50,42 @@
     .form-group input[type="text"]:focus,
     .form-group textarea:focus {
         outline: none;
-        border-color: var(--btn-primary-bg);
-        box-shadow: 0 0 0 3px var(--shadow-sm);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
     .form-group textarea {
-        min-height: 300px;
+        min-height: 400px;
         resize: vertical;
         line-height: 1.6;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
+        font-size: 14px;
+    }
+    
+    @media (min-width: 640px) {
+        .form-group textarea {
+            min-height: 500px;
+        }
     }
     
     .form-actions {
         display: flex;
-        gap: 10px;
-        margin-top: 32px;
-        padding-top: 24px;
+        gap: 8px;
+        margin-top: 24px;
+        padding-top: 20px;
         border-top: 1px solid var(--border-secondary);
+        flex-wrap: wrap;
+    }
+    
+    .form-actions .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+    
+    @media (min-width: 640px) {
+        .form-actions .btn {
+            flex: 0;
+        }
     }
     
     .checkbox-label {
@@ -70,12 +95,21 @@
         cursor: pointer;
         color: var(--text-primary);
         font-weight: 500;
-        font-size: 14px;
+        font-size: 15px;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        border: 1px solid var(--border-primary);
+        transition: all 0.2s ease;
+    }
+    
+    .checkbox-label:hover {
+        border-color: var(--border-hover);
     }
     
     .checkbox-label input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
         cursor: pointer;
     }
     
@@ -84,27 +118,32 @@
         border: 1px solid var(--border-primary);
         border-bottom: none;
         border-radius: 8px 8px 0 0;
-        padding: 10px;
+        padding: 8px;
         display: flex;
-        gap: 6px;
+        gap: 4px;
         flex-wrap: wrap;
     }
     
     .markdown-toolbar button {
         background: var(--bg-secondary);
         border: 1px solid var(--border-primary);
-        padding: 7px 14px;
+        padding: 8px 12px;
         border-radius: 6px;
         cursor: pointer;
         font-size: 13px;
         color: var(--text-primary);
         transition: all 0.2s;
         font-weight: 500;
+        min-height: 36px;
     }
     
     .markdown-toolbar button:hover {
-        background: var(--border-secondary);
-        border-color: var(--border-hover);
+        background: var(--accent-light);
+        border-color: var(--accent-primary);
+    }
+    
+    .markdown-toolbar button:active {
+        transform: scale(0.95);
     }
     
     .form-group textarea.with-toolbar {
@@ -115,8 +154,8 @@
         background: var(--bg-tertiary);
         border: 1px solid var(--border-primary);
         border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 24px;
+        padding: 16px;
+        margin-bottom: 20px;
         font-size: 14px;
         color: var(--text-secondary);
     }
@@ -134,69 +173,90 @@
         border-radius: 4px;
         font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Courier New', monospace;
         font-size: 13px;
+        color: var(--accent-primary);
     }
     
     .markdown-guide ul {
         margin: 0;
-        padding-left: 24px;
+        padding-left: 20px;
     }
     
     .markdown-guide li {
         margin-bottom: 6px;
+        line-height: 1.5;
     }
     
     .toggle-guide {
-        background: transparent;
-        border: none;
-        color: #1a1a1a;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        color: var(--text-primary);
         cursor: pointer;
         font-size: 14px;
-        text-decoration: underline;
-        padding: 0;
+        padding: 10px 16px;
         margin-bottom: 12px;
         font-weight: 500;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
     
     .toggle-guide:hover {
-        color: #666;
-    }
-    
-    .file-upload-group {
-        margin-top: 12px;
-    }
-    
-    .file-upload-group input[type="file"] {
-        display: block;
-        margin-top: 8px;
-        font-size: 14px;
-    }
-    
-    .file-upload-hint {
-        font-size: 13px;
-        color: #999;
-        margin-top: 8px;
+        background: var(--border-secondary);
     }
     
     .form-group input[type="password"] {
         width: 100%;
         padding: 12px 16px;
-        border: 1px solid #e8e8e8;
+        border: 1px solid var(--border-primary);
         border-radius: 8px;
-        font-size: 15px;
+        font-size: 16px;
         transition: all 0.2s ease;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-family: inherit;
     }
     
     .form-group input[type="password"]:focus {
         outline: none;
-        border-color: #1a1a1a;
-        box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.05);
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
     }
     
     .form-group small {
-        color: #999;
+        color: var(--text-secondary);
         font-size: 13px;
         display: block;
         margin-top: 6px;
+        line-height: 1.5;
+    }
+    
+    .file-upload-group {
+        margin-top: 12px;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: 8px;
+        border: 1px dashed var(--border-primary);
+    }
+    
+    .file-upload-group label {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .file-upload-group input[type="file"] {
+        display: block;
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+    
+    .file-upload-hint {
+        font-size: 13px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
     }
 </style>
 {% endblock %}
@@ -205,7 +265,9 @@
 <div class="form-container">
     <h2>{% if note %}Edit Note{% else %}Create New Note{% endif %}</h2>
     
-    <button type="button" class="toggle-guide" onclick="toggleGuide()">📖 Show Markdown Guide</button>
+    <button type="button" class="toggle-guide" onclick="toggleGuide()">
+        <span id="guideIcon">📖</span> Markdown Guide
+    </button>
     <div id="markdownGuide" class="markdown-guide" style="display: none;">
         <h3>Markdown Formatting Guide</h3>
         <ul>
@@ -217,7 +279,6 @@
             <li><strong>Checkbox:</strong> <code>- [ ] Unchecked</code>, <code>- [x] Checked</code></li>
             <li><strong>Link:</strong> <code>[text](url)</code></li>
             <li><strong>Image:</strong> <code>![alt text](url)</code></li>
-            <li><strong>Table:</strong> <code>| Header | Header |</code> then <code>| --- | --- |</code> then <code>| Cell | Cell |</code></li>
             <li><strong>Code:</strong> <code>`inline code`</code> or <code>```code block```</code></li>
         </ul>
     </div>
@@ -226,48 +287,40 @@
         {% csrf_token %}
         <div class="form-group">
             <label for="title">Title</label>
-            <input type="text" id="title" name="title" value="{{ note.title|default:'' }}" required>
+            <input type="text" id="title" name="title" value="{{ note.title|default:'' }}" required placeholder="Enter note title...">
         </div>
         <div class="form-group">
-            <label for="content">Content (Markdown supported)</label>
+            <label for="content">Content</label>
             <div class="markdown-toolbar">
-                <button type="button" onclick="insertMarkdown('**', '**')" title="Bold">B</button>
-                <button type="button" onclick="insertMarkdown('*', '*')" title="Italic">I</button>
-                <button type="button" onclick="insertMarkdown('# ', '')" title="Heading 1">H1</button>
+                <button type="button" onclick="insertMarkdown('**', '**')" title="Bold"><strong>B</strong></button>
+                <button type="button" onclick="insertMarkdown('*', '*')" title="Italic"><em>I</em></button>
+                <button type="button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
                 <button type="button" onclick="insertMarkdown('## ', '')" title="Heading 2">H2</button>
-                <button type="button" onclick="insertMarkdown('### ', '')" title="Heading 3">H3</button>
                 <button type="button" onclick="insertMarkdown('- ', '')" title="Bullet point">• List</button>
-                <button type="button" onclick="insertMarkdown('- [ ] ', '')" title="Checkbox">☐ Checkbox</button>
+                <button type="button" onclick="insertMarkdown('- [ ] ', '')" title="Checkbox">☐ Task</button>
                 <button type="button" onclick="insertMarkdown('[', '](url)')" title="Link">🔗 Link</button>
-                <button type="button" onclick="insertMarkdown('![', '](url)')" title="Image">🖼️ Image</button>
-                <button type="button" onclick="insertTable()" title="Table">📊 Table</button>
-                <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt; Code</button>
+                <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt;</button>
             </div>
-            <textarea id="content" name="content" class="with-toolbar" required>{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
-            <div class="file-upload-group">
-                <label for="image">Upload Image (optional):</label>
-                <input type="file" id="image" name="image" accept="image/*">
-                <div class="file-upload-hint">Supported formats: JPG, PNG, GIF. Uploaded images will be stored locally.</div>
-            </div>
+            <textarea id="content" name="content" class="with-toolbar" required placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
         </div>
         {% if not note or not note.is_locked %}
         <div class="form-group">
             <label class="checkbox-label">
                 <input type="checkbox" id="is_locked" name="is_locked" {% if is_locked %}checked{% endif %}>
-                <span>🔒 Lock this note (requires password)</span>
+                <span>🔒 Encrypt this note with a password</span>
             </label>
         </div>
         <div class="form-group" id="passwordGroup" style="display: {% if is_locked %}block{% else %}none{% endif %};">
-            <label for="lock_password">Lock Password</label>
-            <input type="password" id="lock_password" name="lock_password" placeholder="Enter password to encrypt this note">
-            <small style="color: #718096; display: block; margin-top: 5px;">
-                This password will be used to encrypt your note. You'll need it to unlock and view the note later.
+            <label for="lock_password">Encryption Password</label>
+            <input type="password" id="lock_password" name="lock_password" placeholder="Enter a strong password">
+            <small>
+                This password will encrypt your note. You'll need it to view the note later. Make sure to remember it!
             </small>
         </div>
         {% endif %}
         <div class="form-actions">
-            <button type="submit" class="btn btn-success">{% if note %}Update Note{% else %}Create Note{% endif %}</button>
-            <a href="{% url 'note_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">{% if note %}💾 Save Changes{% else %}✓ Create Note{% endif %}</button>
+            <a href="{% if note %}{% url 'note_view' note.pk %}{% else %}{% url 'note_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
@@ -279,10 +332,10 @@
         const btn = document.querySelector('.toggle-guide');
         if (guide.style.display === 'none') {
             guide.style.display = 'block';
-            btn.textContent = '📖 Hide Markdown Guide';
+            btn.innerHTML = '<span id="guideIcon">📖</span> Hide Guide';
         } else {
             guide.style.display = 'none';
-            btn.textContent = '📖 Show Markdown Guide';
+            btn.innerHTML = '<span id="guideIcon">📖</span> Markdown Guide';
         }
     }
     
@@ -301,25 +354,6 @@
         textarea.setSelectionRange(newCursorPos, newCursorPos);
         textarea.focus();
     }
-    
-    // Insert table template
-    function insertTable() {
-        const table = '\n| Header 1 | Header 2 | Header 3 |\n| -------- | -------- | -------- |\n| Cell 1   | Cell 2   | Cell 3   |\n| Cell 4   | Cell 5   | Cell 6   |\n';
-        const textarea = document.getElementById('content');
-        const start = textarea.selectionStart;
-        textarea.value = textarea.value.substring(0, start) + table + textarea.value.substring(start);
-        textarea.focus();
-    }
-    
-    // Handle image upload and insert markdown
-    document.getElementById('image').addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            const fileName = e.target.files[0].name;
-            const textarea = document.getElementById('content');
-            const imageMarkdown = '\n![' + fileName + '](/media/note_images/' + fileName + ')\n';
-            textarea.value += imageMarkdown;
-        }
-    });
     
     // Lock checkbox handler
     const isLockedCheckbox = document.getElementById('is_locked');
