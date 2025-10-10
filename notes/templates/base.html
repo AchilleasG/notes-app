@@ -102,9 +102,22 @@
             letter-spacing: -0.3px;
         }
         
-        header h1::before {
+        header h1 a {
+            color: var(--text-primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        header h1 a:hover {
+            color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+        
+        header h1 a::before {
             content: "📓";
-            margin-right: 8px;
         }
         
         .user-info {
@@ -337,7 +350,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Personal Notebook</h1>
+            <h1><a href="{% url 'note_list' %}">Personal Notebook</a></h1>
             <div class="user-info">
                 {% if user.is_authenticated %}
                     <span>Welcome, <strong>{{ user.username }}</strong></span>
