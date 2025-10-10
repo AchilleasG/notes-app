@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
-from .models import Note, NoteVersion, Tag
+from .models import Note, NoteVersion, Tag, CustomUser, Friendship, FriendRequest, SharedNote, ChatMessage
 from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 
 
@@ -334,3 +334,294 @@ def tag_autocomplete(request):
     
     results = [{"id": tag.id, "name": tag.name, "color": tag.color} for tag in tags]
     return JsonResponse({"results": results})
+
+
+# Friends system views
+
+@login_required
+def search_users(request):
+    """Search for users by username or email"""
+    query = request.GET.get('q', '').strip()
+    results = []
+    
+    if query:
+        # Search by username or email (case-insensitive)
+        users = CustomUser.objects.filter(
+            Q(username__icontains=query) | Q(email__icontains=query)
+        ).exclude(id=request.user.id)[:20]
+        
+        # Check friend status for each user
+        for user in users:
+            is_friend = Friendship.are_friends(request.user, user)
+            
+            # Check if there's a pending request
+            pending_request = FriendRequest.objects.filter(
+                Q(from_user=request.user, to_user=user, status='pending') |
+                Q(from_user=user, to_user=request.user, status='pending')
+            ).first()
+            
+            results.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_friend': is_friend,
+                'pending_request': pending_request.id if pending_request else None,
+                'pending_from_me': pending_request.from_user == request.user if pending_request else False,
+            })
+    
+    return render(request, 'notes/search_users.html', {'query': query, 'results': results})
+
+
+@login_required
+def send_friend_request(request, user_id):
+    """Send a friend request to another user"""
+    to_user = get_object_or_404(CustomUser, id=user_id)
+    
+    if to_user == request.user:
+        messages.error(request, "You cannot send a friend request to yourself.")
+        return redirect('search_users')
+    
+    # Check if already friends
+    if Friendship.are_friends(request.user, to_user):
+        messages.info(request, f"You are already friends with {to_user.username}.")
+        return redirect('friends_list')
+    
+    # Check if there's already a pending request
+    existing_request = FriendRequest.objects.filter(
+        Q(from_user=request.user, to_user=to_user) |
+        Q(from_user=to_user, to_user=request.user)
+    ).filter(status='pending').first()
+    
+    if existing_request:
+        messages.info(request, "There is already a pending friend request.")
+        return redirect('search_users')
+    
+    # Create friend request
+    FriendRequest.objects.create(from_user=request.user, to_user=to_user)
+    messages.success(request, f"Friend request sent to {to_user.username}!")
+    
+    return redirect('search_users')
+
+
+@login_required
+def accept_friend_request(request, request_id):
+    """Accept a friend request"""
+    friend_request = get_object_or_404(FriendRequest, id=request_id, to_user=request.user, status='pending')
+    
+    # Update request status
+    friend_request.status = 'accepted'
+    friend_request.save()
+    
+    # Create friendship (ensure user1 is always the one with lower ID to avoid duplicates)
+    user1, user2 = sorted([friend_request.from_user, friend_request.to_user], key=lambda u: u.id)
+    Friendship.objects.get_or_create(user1=user1, user2=user2)
+    
+    messages.success(request, f"You are now friends with {friend_request.from_user.username}!")
+    return redirect('friends_list')
+
+
+@login_required
+def reject_friend_request(request, request_id):
+    """Reject a friend request"""
+    friend_request = get_object_or_404(FriendRequest, id=request_id, to_user=request.user, status='pending')
+    
+    friend_request.status = 'rejected'
+    friend_request.save()
+    
+    messages.info(request, "Friend request rejected.")
+    return redirect('friends_list')
+
+
+@login_required
+def friends_list(request):
+    """Display list of friends and pending friend requests"""
+    friends = Friendship.get_friends(request.user)
+    pending_requests = FriendRequest.objects.filter(to_user=request.user, status='pending')
+    sent_requests = FriendRequest.objects.filter(from_user=request.user, status='pending')
+    
+    return render(request, 'notes/friends_list.html', {
+        'friends': friends,
+        'pending_requests': pending_requests,
+        'sent_requests': sent_requests,
+    })
+
+
+@login_required
+def friend_chat(request, friend_id):
+    """Chat with a friend"""
+    friend = get_object_or_404(CustomUser, id=friend_id)
+    
+    # Verify friendship
+    if not Friendship.are_friends(request.user, friend):
+        messages.error(request, "You can only chat with friends.")
+        return redirect('friends_list')
+    
+    # Handle message sending
+    if request.method == 'POST':
+        message_text = request.POST.get('message', '').strip()
+        if message_text:
+            ChatMessage.objects.create(
+                from_user=request.user,
+                to_user=friend,
+                message=message_text
+            )
+            return redirect('friend_chat', friend_id=friend_id)
+    
+    # Get all messages between the two users
+    messages_qs = ChatMessage.objects.filter(
+        Q(from_user=request.user, to_user=friend) |
+        Q(from_user=friend, to_user=request.user)
+    ).order_by('created_at')
+    
+    return render(request, 'notes/friend_chat.html', {
+        'friend': friend,
+        'messages': messages_qs,
+    })
+
+
+@login_required
+def shared_notes_list(request, friend_id):
+    """List shared notes with a friend"""
+    friend = get_object_or_404(CustomUser, id=friend_id)
+    
+    # Verify friendship
+    if not Friendship.are_friends(request.user, friend):
+        messages.error(request, "You can only view shared notes with friends.")
+        return redirect('friends_list')
+    
+    # Get shared notes (both directions)
+    shared_notes = SharedNote.objects.filter(
+        Q(user1=request.user, user2=friend) |
+        Q(user1=friend, user2=request.user)
+    )
+    
+    return render(request, 'notes/shared_notes_list.html', {
+        'friend': friend,
+        'shared_notes': shared_notes,
+    })
+
+
+@login_required
+def shared_note_create(request, friend_id):
+    """Create a shared note with a friend"""
+    friend = get_object_or_404(CustomUser, id=friend_id)
+    
+    # Verify friendship
+    if not Friendship.are_friends(request.user, friend):
+        messages.error(request, "You can only create shared notes with friends.")
+        return redirect('friends_list')
+    
+    if request.method == "POST":
+        title = request.POST.get("title")
+        content = request.POST.get("content")
+        encrypted_content = request.POST.get("encrypted_content")
+        is_locked = request.POST.get("is_locked") == "on"
+        salt = request.POST.get("salt", "")
+
+        # Use encrypted content if provided, otherwise use regular content
+        final_content = encrypted_content if encrypted_content else content
+
+        if title and final_content:
+            # Ensure consistent user ordering
+            user1, user2 = sorted([request.user, friend], key=lambda u: u.id)
+            
+            shared_note = SharedNote(
+                user1=user1,
+                user2=user2,
+                title=title,
+                content=final_content,
+                is_locked=is_locked,
+                salt=salt,
+                created_by=request.user,
+            )
+            shared_note.save()
+            
+            messages.success(request, "Shared note created successfully!")
+            return redirect("shared_notes_list", friend_id=friend_id)
+        else:
+            messages.error(request, "Title and content are required.")
+    
+    return render(request, "notes/shared_note_form.html", {"friend": friend})
+
+
+@login_required
+def shared_note_view(request, note_id):
+    """View a shared note"""
+    shared_note = get_object_or_404(SharedNote, id=note_id)
+    
+    # Verify access
+    if not shared_note.has_access(request.user):
+        messages.error(request, "You don't have access to this note.")
+        return redirect('friends_list')
+    
+    # Determine who the friend is
+    friend = shared_note.user2 if shared_note.user1 == request.user else shared_note.user1
+    
+    return render(request, 'notes/shared_note_view.html', {
+        'shared_note': shared_note,
+        'friend': friend,
+    })
+
+
+@login_required
+def shared_note_edit(request, note_id):
+    """Edit a shared note"""
+    shared_note = get_object_or_404(SharedNote, id=note_id)
+    
+    # Verify access
+    if not shared_note.has_access(request.user):
+        messages.error(request, "You don't have access to this note.")
+        return redirect('friends_list')
+    
+    friend = shared_note.user2 if shared_note.user1 == request.user else shared_note.user1
+    
+    if request.method == "POST":
+        title = request.POST.get("title")
+        content = request.POST.get("content")
+        encrypted_content = request.POST.get("encrypted_content")
+        is_locked = request.POST.get("is_locked") == "on"
+        salt = request.POST.get("salt", shared_note.salt)
+
+        # Use encrypted content if provided, otherwise use regular content
+        final_content = encrypted_content if encrypted_content else content
+
+        if title and final_content:
+            shared_note.title = title
+            shared_note.content = final_content
+            shared_note.is_locked = is_locked
+            shared_note.salt = salt
+            shared_note.save()
+
+            messages.success(request, "Shared note updated successfully!")
+            return redirect("shared_note_view", note_id=note_id)
+        else:
+            messages.error(request, "Title and content are required.")
+
+    return render(request, "notes/shared_note_form.html", {
+        "shared_note": shared_note,
+        "friend": friend,
+    })
+
+
+@login_required
+def shared_note_delete(request, note_id):
+    """Delete a shared note"""
+    shared_note = get_object_or_404(SharedNote, id=note_id)
+    
+    # Verify access
+    if not shared_note.has_access(request.user):
+        messages.error(request, "You don't have access to this note.")
+        return redirect('friends_list')
+    
+    friend = shared_note.user2 if shared_note.user1 == request.user else shared_note.user1
+    
+    if request.method == "POST":
+        friend_id = friend.id
+        shared_note.delete()
+        messages.success(request, "Shared note deleted successfully!")
+        return redirect("shared_notes_list", friend_id=friend_id)
+    
+    return render(request, "notes/shared_note_confirm_delete.html", {
+        "shared_note": shared_note,
+        "friend": friend,
+    })

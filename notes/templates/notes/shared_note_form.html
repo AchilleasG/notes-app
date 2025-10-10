@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{% if shared_note %}Edit{% else %}Create{% endif %} Shared Note - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .form-header {
+        margin-bottom: 24px;
+    }
+    
+    .form-header h2 {
+        color: var(--text-primary);
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .form-header p {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    
+    .form-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        color: var(--text-primary);
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 16px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    
+    .form-group textarea {
+        min-height: 300px;
+        resize: vertical;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .form-actions .btn {
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: normal;
+    }
+    
+    .encryption-info {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <h2>{% if shared_note %}Edit{% else %}Create{% endif %} Shared Note</h2>
+        <p>Shared with {{ friend.username }}</p>
+    </div>
+    
+    <form method="post" id="noteForm">
+        {% csrf_token %}
+        
+        <div class="form-section">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" value="{% if shared_note %}{{ shared_note.title }}{% endif %}" required>
+            </div>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="is_locked" name="is_locked" {% if shared_note.is_locked %}checked{% endif %}>
+                    <label for="is_locked">🔒 Encrypt this note</label>
+                </div>
+                <div class="encryption-info" id="encryptionInfo" style="display: none;">
+                    Enter a password to encrypt your note. You'll need this password to view it later.
+                    <div style="margin-top: 8px;">
+                        <input type="password" id="encryptPassword" placeholder="Enter encryption password" style="padding: 8px; border: 1px solid var(--border-primary); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">Content</label>
+                <textarea id="content" name="content" required>{% if shared_note %}{{ shared_note.content }}{% endif %}</textarea>
+            </div>
+            
+            <input type="hidden" id="encrypted_content" name="encrypted_content">
+            <input type="hidden" id="salt" name="salt" value="{% if shared_note %}{{ shared_note.salt }}{% endif %}">
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if shared_note %}Update{% else %}Create{% endif %} Shared Note</button>
+            <a href="{% url 'shared_notes_list' friend.id %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script>
+    const isLockedCheckbox = document.getElementById('is_locked');
+    const encryptionInfo = document.getElementById('encryptionInfo');
+    const contentTextarea = document.getElementById('content');
+    const encryptedContentInput = document.getElementById('encrypted_content');
+    const saltInput = document.getElementById('salt');
+    const encryptPasswordInput = document.getElementById('encryptPassword');
+    const noteForm = document.getElementById('noteForm');
+    
+    // Toggle encryption info visibility
+    isLockedCheckbox.addEventListener('change', function() {
+        encryptionInfo.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Show encryption info if note is already locked
+    if (isLockedCheckbox.checked) {
+        encryptionInfo.style.display = 'block';
+    }
+    
+    // Handle form submission
+    noteForm.addEventListener('submit', function(e) {
+        if (isLockedCheckbox.checked) {
+            const password = encryptPasswordInput.value;
+            if (!password) {
+                e.preventDefault();
+                alert('Please enter an encryption password.');
+                return;
+            }
+            
+            // Generate salt if not exists
+            let salt = saltInput.value;
+            if (!salt) {
+                salt = CryptoJS.lib.WordArray.random(128/8).toString();
+                saltInput.value = salt;
+            }
+            
+            // Encrypt content
+            const content = contentTextarea.value;
+            const encrypted = CryptoJS.AES.encrypt(content, password + salt).toString();
+            encryptedContentInput.value = encrypted;
+            
+            // Clear the plain content
+            contentTextarea.value = '';
+        }
+    });
+</script>
+{% endblock %}
