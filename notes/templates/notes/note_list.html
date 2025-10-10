@@ -286,7 +286,10 @@
 <div class="notes-container">
     <div class="header-actions">
         <h2>My Notes</h2>
-        <a href="{% url 'note_create' %}" class="btn btn-primary">+ New Note</a>
+        <div style="display: flex; gap: 12px;">
+            <a href="{% url 'friends_list' %}" class="btn btn-secondary">👥 Friends</a>
+            <a href="{% url 'note_create' %}" class="btn btn-primary">+ New Note</a>
+        </div>
     </div>
     
     <div class="tags-filter">

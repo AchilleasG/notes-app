@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load markdown_extras %}
+
+{% block title %}{{ shared_note.title }} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .note-view-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .note-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .note-header h1 {
+        color: var(--text-primary);
+        font-size: 32px;
+        font-weight: 600;
+        margin: 0;
+        word-wrap: break-word;
+        flex: 1;
+    }
+    
+    .note-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .note-meta {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-primary);
+    }
+    
+    .note-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 28px;
+        line-height: 1.8;
+        color: var(--text-primary);
+    }
+    
+    .encrypted-placeholder {
+        background: var(--bg-tertiary);
+        border: 2px dashed var(--border-primary);
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+    }
+    
+    .encrypted-placeholder .lock-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        display: block;
+        opacity: 0.6;
+    }
+    
+    .encrypted-placeholder h3 {
+        color: var(--text-primary);
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+    
+    .encrypted-placeholder p {
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+    }
+    
+    .password-form {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    
+    .password-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 16px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        margin-bottom: 12px;
+        box-sizing: border-box;
+    }
+    
+    .password-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    
+    .error-message {
+        color: var(--danger);
+        font-size: 14px;
+        margin-top: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="note-view-container">
+    <div class="note-header">
+        <h1>{{ shared_note.title }}</h1>
+        <div class="note-actions">
+            <a href="{% url 'shared_note_edit' shared_note.id %}" class="btn btn-primary">Edit</a>
+            <a href="{% url 'shared_note_delete' shared_note.id %}" class="btn btn-danger">Delete</a>
+            <a href="{% url 'shared_notes_list' friend.id %}" class="btn btn-secondary">← Back</a>
+        </div>
+    </div>
+    
+    <div class="note-meta">
+        Shared with {{ friend.username }} • Created by {{ shared_note.created_by.username }} • Last updated {{ shared_note.updated_at|date:"F d, Y g:i A" }}
+    </div>
+    
+    {% if shared_note.is_locked %}
+        <div class="encrypted-placeholder" id="encryptedPlaceholder">
+            <span class="lock-icon">🔒</span>
+            <h3>This note is encrypted</h3>
+            <p>Enter the password to view the content</p>
+            <div class="password-form">
+                <input type="password" id="decryptPassword" class="password-input" placeholder="Enter password">
+                <button onclick="decryptNote()" class="btn btn-primary" style="width: 100%;">Unlock Note</button>
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+        <div class="note-content" id="noteContent" style="display: none;"></div>
+    {% else %}
+        <div class="note-content">
+            {{ shared_note.content|markdown_format }}
+        </div>
+    {% endif %}
+</div>
+
+{% if shared_note.is_locked %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    const encryptedContent = `{{ shared_note.content|escapejs }}`;
+    const salt = `{{ shared_note.salt|escapejs }}`;
+    
+    function decryptNote() {
+        const password = document.getElementById('decryptPassword').value;
+        const errorMessage = document.getElementById('errorMessage');
+        
+        if (!password) {
+            errorMessage.textContent = 'Please enter a password.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+        
+        try {
+            const decrypted = CryptoJS.AES.decrypt(encryptedContent, password + salt);
+            const decryptedText = decrypted.toString(CryptoJS.enc.Utf8);
+            
+            if (!decryptedText) {
+                errorMessage.textContent = 'Incorrect password. Please try again.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // Hide encrypted placeholder and show content
+            document.getElementById('encryptedPlaceholder').style.display = 'none';
+            const noteContent = document.getElementById('noteContent');
+            noteContent.innerHTML = marked.parse(decryptedText);
+            noteContent.style.display = 'block';
+            errorMessage.style.display = 'none';
+        } catch (e) {
+            errorMessage.textContent = 'Error decrypting note. Please check your password.';
+            errorMessage.style.display = 'block';
+        }
+    }
+    
+    // Allow Enter key to decrypt
+    document.getElementById('decryptPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            decryptNote();
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

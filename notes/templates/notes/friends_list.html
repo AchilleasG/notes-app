@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Friends - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .friends-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .friends-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    
+    .friends-header h2 {
+        color: var(--text-primary);
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .section h3 {
+        color: var(--text-primary);
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        border-bottom: 2px solid var(--border-primary);
+        padding-bottom: 12px;
+    }
+    
+    .friend-card, .request-card {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .friend-info {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .friend-name {
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    .friend-email {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    
+    .friend-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .friend-actions .btn {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+    
+    .empty-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-secondary);
+    }
+    
+    .empty-message .icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="friends-container">
+    <div class="friends-header">
+        <h2>👥 Friends</h2>
+        <div style="display: flex; gap: 12px;">
+            <a href="{% url 'search_users' %}" class="btn btn-primary">+ Add Friend</a>
+            <a href="{% url 'note_list' %}" class="btn btn-secondary">← Back to Notes</a>
+        </div>
+    </div>
+    
+    {% if pending_requests %}
+    <div class="section">
+        <h3>📬 Friend Requests</h3>
+        {% for request in pending_requests %}
+        <div class="request-card">
+            <div class="friend-info">
+                <div class="friend-name">{{ request.from_user.username }}</div>
+                <div class="friend-email">{{ request.from_user.email }}</div>
+            </div>
+            <div class="friend-actions">
+                <form method="post" action="{% url 'accept_friend_request' request.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">✓ Accept</button>
+                </form>
+                <form method="post" action="{% url 'reject_friend_request' request.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary">✗ Reject</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if sent_requests %}
+    <div class="section">
+        <h3>📤 Sent Requests</h3>
+        {% for request in sent_requests %}
+        <div class="request-card">
+            <div class="friend-info">
+                <div class="friend-name">{{ request.to_user.username }}</div>
+                <div class="friend-email">{{ request.to_user.email }}</div>
+                <div class="friend-email" style="margin-top: 4px; font-style: italic;">Waiting for response...</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div class="section">
+        <h3>👫 My Friends</h3>
+        {% if friends %}
+            {% for friend in friends %}
+            <div class="friend-card">
+                <div class="friend-info">
+                    <div class="friend-name">{{ friend.username }}</div>
+                    <div class="friend-email">{{ friend.email }}</div>
+                </div>
+                <div class="friend-actions">
+                    <a href="{% url 'friend_chat' friend.id %}" class="btn btn-primary">💬 Chat</a>
+                    <a href="{% url 'shared_notes_list' friend.id %}" class="btn btn-secondary">📝 Notes</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-message">
+                <div class="icon">👥</div>
+                <p>No friends yet. Start by searching for users!</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

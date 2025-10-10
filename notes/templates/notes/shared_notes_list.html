@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load markdown_extras %}
+
+{% block title %}Shared Notes with {{ friend.username }} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .shared-notes-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .shared-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    
+    .shared-header h2 {
+        color: var(--text-primary);
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .notes-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    @media (min-width: 768px) {
+        .notes-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .notes-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
+    .note-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        min-height: 200px;
+    }
+    
+    .note-card:hover {
+        border-color: var(--accent-primary);
+        box-shadow: 0 4px 12px var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .note-card.locked {
+        border-color: var(--warning);
+        background: var(--warning-light);
+    }
+    
+    .note-card h3 {
+        color: var(--text-primary);
+        margin-bottom: 12px;
+        font-size: 18px;
+        font-weight: 600;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .note-card h3 .lock-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+    
+    .note-preview {
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+        line-height: 1.5;
+        font-size: 14px;
+        flex: 1;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+    
+    .note-meta {
+        font-size: 13px;
+        color: var(--text-tertiary);
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-secondary);
+    }
+    
+    .note-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .note-actions .btn {
+        font-size: 14px;
+        padding: 10px 16px;
+        flex: 1;
+        min-width: 80px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        max-width: 500px;
+        margin: 40px auto;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        border: 1px dashed var(--border-primary);
+    }
+    
+    .empty-state-icon {
+        font-size: 72px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+    
+    .empty-state h3 {
+        font-size: 22px;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+    
+    .empty-state p {
+        margin-bottom: 24px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        font-size: 15px;
+    }
+    
+    .locked-message {
+        color: var(--warning);
+        font-style: italic;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shared-notes-container">
+    <div class="shared-header">
+        <h2>📝 Shared Notes with {{ friend.username }}</h2>
+        <div style="display: flex; gap: 12px;">
+            <a href="{% url 'shared_note_create' friend.id %}" class="btn btn-primary">+ New Shared Note</a>
+            <a href="{% url 'friends_list' %}" class="btn btn-secondary">← Back</a>
+        </div>
+    </div>
+    
+    {% if shared_notes %}
+        <div class="notes-grid">
+            {% for note in shared_notes %}
+                <div class="note-card {% if note.is_locked %}locked{% endif %}" onclick="window.location='{% url 'shared_note_view' note.id %}'">
+                    <h3>
+                        {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
+                        <span>{{ note.title }}</span>
+                    </h3>
+                    {% if note.is_locked %}
+                        <p class="locked-message">🔐 Encrypted note - click to unlock</p>
+                    {% else %}
+                        <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
+                    {% endif %}
+                    <div class="note-meta">
+                        Created by {{ note.created_by.username }} • Updated {{ note.updated_at|date:"M d, Y" }}
+                    </div>
+                    <div class="note-actions" onclick="event.stopPropagation()">
+                        <a href="{% url 'shared_note_view' note.id %}" class="btn btn-primary">Open</a>
+                        <a href="{% url 'shared_note_edit' note.id %}" class="btn btn-secondary">Edit</a>
+                        <a href="{% url 'shared_note_delete' note.id %}" class="btn btn-danger">Delete</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3>No shared notes yet</h3>
+            <p>Create your first shared note with {{ friend.username }}.</p>
+            <a href="{% url 'shared_note_create' friend.id %}" class="btn btn-primary">Create Shared Note</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

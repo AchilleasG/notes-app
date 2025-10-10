@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Search Users - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .search-header {
+        margin-bottom: 24px;
+    }
+    
+    .search-header h2 {
+        color: var(--text-primary);
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+    
+    .search-box {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 12px 16px;
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 16px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+    
+    .user-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .user-info {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .user-name {
+        color: var(--text-primary);
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    .user-email {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+    
+    .user-status {
+        color: var(--text-tertiary);
+        font-size: 14px;
+        margin-top: 8px;
+        font-style: italic;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+    
+    .empty-state .icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.6;
+    }
+    
+    .empty-state h3 {
+        color: var(--text-primary);
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="search-header">
+        <h2>🔍 Search Users</h2>
+        <a href="{% url 'friends_list' %}" class="btn btn-secondary">← Back to Friends</a>
+    </div>
+    
+    <form method="get" class="search-box">
+        <input 
+            type="text" 
+            name="q" 
+            class="search-input" 
+            placeholder="Search by username or email..." 
+            value="{{ query }}"
+            autofocus>
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    
+    {% if query %}
+        {% if results %}
+            {% for user in results %}
+            <div class="user-card">
+                <div class="user-info">
+                    <div class="user-name">{{ user.username }}</div>
+                    <div class="user-email">{{ user.email }}</div>
+                    {% if user.is_friend %}
+                        <div class="user-status">✓ Already friends</div>
+                    {% elif user.pending_request %}
+                        {% if user.pending_from_me %}
+                            <div class="user-status">⏳ Friend request sent</div>
+                        {% else %}
+                            <div class="user-status">⏳ Friend request pending</div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% if not user.is_friend and not user.pending_request %}
+                    <form method="post" action="{% url 'send_friend_request' user.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">+ Add Friend</button>
+                    </form>
+                {% elif user.is_friend %}
+                    <a href="{% url 'friend_chat' user.id %}" class="btn btn-secondary">💬 Chat</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">🔍</div>
+                <h3>No users found</h3>
+                <p>Try searching with a different username or email.</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <div class="icon">👥</div>
+            <h3>Search for users</h3>
+            <p>Enter a username or email address to find and add friends.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
