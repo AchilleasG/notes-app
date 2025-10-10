@@ -1,12 +1,12 @@
 from django.test import TestCase
-from django.contrib.auth.models import User
 from .models import Note, NoteVersion
 
 
 class NoteVersionTestCase(TestCase):
     def setUp(self):
         """Set up test user and note"""
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(username='testuser', password='testpass')
         self.client.login(username='testuser', password='testpass')
         
     def test_version_created_on_edit(self):
@@ -83,7 +83,8 @@ class NoteVersionTestCase(TestCase):
 class DarkModeTestCase(TestCase):
     def setUp(self):
         """Set up test user"""
-        self.user = User.objects.create_user(username='testuser', password='testpass')
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(username='testuser', password='testpass')
         self.client.login(username='testuser', password='testpass')
         
     def test_dark_mode_toggle_present(self):
@@ -190,3 +191,153 @@ class ProfileTestCase(TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Profile')
+
+
+class TagsTestCase(TestCase):
+    def setUp(self):
+        """Set up test user and login"""
+        from .models import CustomUser, Tag, Note
+        self.user = CustomUser.objects.create_user(
+            username='testuser', 
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        
+    def test_tag_creation(self):
+        """Test that tags can be created"""
+        from .models import Tag
+        tag = Tag.objects.create(
+            user=self.user,
+            name='Python',
+            color='#3b82f6'
+        )
+        self.assertEqual(tag.name, 'Python')
+        self.assertEqual(tag.color, '#3b82f6')
+        
+    def test_tag_autocomplete_endpoint(self):
+        """Test that tag autocomplete endpoint works"""
+        from .models import Tag
+        # Create some tags
+        Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        Tag.objects.create(user=self.user, name='Django', color='#16a34a')
+        Tag.objects.create(user=self.user, name='JavaScript', color='#ea580c')
+        
+        response = self.client.get('/api/tags/autocomplete/?q=py')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('results', data)
+        self.assertEqual(len(data['results']), 1)
+        self.assertEqual(data['results'][0]['name'], 'Python')
+        
+    def test_note_with_tags(self):
+        """Test creating a note with tags"""
+        from .models import Tag, Note
+        import json
+        
+        # Create tags
+        tag1 = Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        tag2 = Tag.objects.create(user=self.user, name='Django', color='#16a34a')
+        
+        # Create note with tags
+        tags_data = json.dumps([
+            {'name': 'Python', 'color': '#3b82f6'},
+            {'name': 'Django', 'color': '#16a34a'}
+        ])
+        
+        response = self.client.post('/create/', {
+            'title': 'Test Note with Tags',
+            'content': 'Content with tags',
+            'tags': tags_data
+        })
+        
+        # Should redirect after creation
+        self.assertEqual(response.status_code, 302)
+        
+        # Check that note was created with tags
+        note = Note.objects.get(title='Test Note with Tags')
+        self.assertEqual(note.tags.count(), 2)
+        self.assertTrue(note.tags.filter(name='Python').exists())
+        self.assertTrue(note.tags.filter(name='Django').exists())
+        
+    def test_tag_filtering(self):
+        """Test filtering notes by tags"""
+        from .models import Tag, Note
+        
+        # Create tags
+        tag1 = Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        tag2 = Tag.objects.create(user=self.user, name='Django', color='#16a34a')
+        
+        # Create notes
+        note1 = Note.objects.create(user=self.user, title='Note 1', content='Content 1')
+        note1.tags.add(tag1)
+        
+        note2 = Note.objects.create(user=self.user, title='Note 2', content='Content 2')
+        note2.tags.add(tag2)
+        
+        note3 = Note.objects.create(user=self.user, title='Note 3', content='Content 3')
+        note3.tags.add(tag1, tag2)
+        
+        # Filter by Python tag
+        response = self.client.get('/?tags=Python')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Note 1')
+        self.assertContains(response, 'Note 3')
+        self.assertNotContains(response, 'Note 2')
+        
+    def test_tag_case_insensitive(self):
+        """Test that tags are case-insensitive"""
+        from .models import Tag
+        
+        # Create tag with lowercase
+        Tag.objects.create(user=self.user, name='python', color='#3b82f6')
+        
+        # Try to filter with uppercase
+        response = self.client.get('/?tags=PYTHON')
+        self.assertEqual(response.status_code, 200)
+        
+    def test_tags_display_in_note_list(self):
+        """Test that tags are displayed in note list"""
+        from .models import Tag, Note
+        
+        tag = Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        note = Note.objects.create(user=self.user, title='Test Note', content='Content')
+        note.tags.add(tag)
+        
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Python')
+        self.assertContains(response, tag.color)
+        
+    def test_multiple_tags_per_note(self):
+        """Test that a note can have multiple tags"""
+        from .models import Tag, Note
+        
+        tag1 = Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        tag2 = Tag.objects.create(user=self.user, name='Django', color='#16a34a')
+        tag3 = Tag.objects.create(user=self.user, name='WebDev', color='#ea580c')
+        
+        note = Note.objects.create(user=self.user, title='Test Note', content='Content')
+        note.tags.add(tag1, tag2, tag3)
+        
+        self.assertEqual(note.tags.count(), 3)
+        
+    def test_tag_unique_per_user(self):
+        """Test that tag names are unique per user"""
+        from .models import Tag, CustomUser
+        from django.db import IntegrityError, transaction
+        
+        # Create first tag
+        Tag.objects.create(user=self.user, name='Python', color='#3b82f6')
+        
+        # Try to create duplicate tag for same user
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Tag.objects.create(user=self.user, name='Python', color='#16a34a')
+        
+        # But another user can have the same tag name
+        other_user = CustomUser.objects.create_user(
+            username='otheruser',
+            password='otherpass'
+        )
+        tag2 = Tag.objects.create(user=other_user, name='Python', color='#16a34a')
+        self.assertEqual(tag2.name, 'Python')

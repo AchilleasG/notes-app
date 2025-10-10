@@ -1,6 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Note, NoteVersion, CustomUser
+from .models import Note, NoteVersion, CustomUser, Tag
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("name", "user", "color", "created_at")
+    list_filter = ("user", "created_at")
+    search_fields = ("name",)
 
 
 @admin.register(CustomUser)
@@ -35,8 +42,9 @@ class CustomUserAdmin(UserAdmin):
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
     list_display = ("title", "user", "created_at", "updated_at")
-    list_filter = ("user", "created_at")
+    list_filter = ("user", "created_at", "tags")
     search_fields = ("title", "content")
+    filter_horizontal = ("tags",)
 
 
 @admin.register(NoteVersion)
