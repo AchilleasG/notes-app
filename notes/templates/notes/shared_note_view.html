@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
+{% load static %}
 
 {% block title %}{{ shared_note.title }} - Personal Notebook{% endblock %}
 
@@ -146,14 +147,20 @@
         </div>
         <div class="note-content" id="noteContent" style="display: none;"></div>
     {% else %}
-        <div class="note-content">
-            {{ shared_note.content|markdown }}
+        <div class="note-content" id="noteContent">
+            <!-- Content will be rendered client-side -->
         </div>
     {% endif %}
 </div>
 
-{% if shared_note.is_locked %}
+<!-- Load marked.js for client-side markdown rendering -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Load our markdown renderer and checkbox handler -->
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
+<script src="{% static 'js/checkbox-handler.js' %}"></script>
+
+{% if shared_note.is_locked %}
 <script>
     const encryptedContent = `{{ shared_note.content|escapejs }}`;
     const salt = `{{ shared_note.salt|escapejs }}`;
@@ -264,9 +271,30 @@
             // Hide encrypted placeholder and show content
             document.getElementById('encryptedPlaceholder').style.display = 'none';
             const noteContent = document.getElementById('noteContent');
-            noteContent.innerHTML = marked.parse(decryptedText);
+            
+            // Render with client-side markdown renderer (interactive checkboxes)
+            if (window.markdownRenderer) {
+                noteContent.innerHTML = window.markdownRenderer.render(decryptedText, true);
+            } else {
+                noteContent.innerHTML = marked.parse(decryptedText);
+            }
+            
             noteContent.style.display = 'block';
             errorMessage.style.display = 'none';
+            
+            // Initialize checkbox handlers
+            if (window.checkboxHandler) {
+                window.checkboxHandler.init({
+                    content: decryptedText,
+                    noteId: {{ shared_note.pk }},
+                    noteType: 'shared',
+                    isEncrypted: true,
+                    encryptionPassword: password,
+                    encryptionSalt: salt,
+                    updateUrl: `/shared-notes/{{ shared_note.pk }}/edit/`,
+                    csrfToken: document.querySelector('[name=csrfmiddlewaretoken]').value
+                });
+            }
         } catch (e) {
             errorMessage.textContent = 'Error decrypting note. Please check your password.';
             errorMessage.style.display = 'block';
@@ -277,6 +305,30 @@
     document.getElementById('decryptPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             decryptNote();
+        }
+    });
+</script>
+{% else %}
+<script>
+    // For non-encrypted notes, render content client-side
+    document.addEventListener('DOMContentLoaded', function() {
+        const noteContent = document.getElementById('noteContent');
+        const content = `{{ shared_note.content|escapejs }}`;
+        
+        if (noteContent && window.markdownRenderer) {
+            noteContent.innerHTML = window.markdownRenderer.render(content, true);
+            
+            // Initialize checkbox handlers for shared notes
+            if (window.checkboxHandler) {
+                window.checkboxHandler.init({
+                    content: content,
+                    noteId: {{ shared_note.pk }},
+                    noteType: 'shared',
+                    isEncrypted: false,
+                    updateUrl: `/shared-notes/{{ shared_note.pk }}/edit/`,
+                    csrfToken: document.querySelector('[name=csrfmiddlewaretoken]').value
+                });
+            }
         }
     });
 </script>

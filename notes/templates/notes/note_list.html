@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
+{% load static %}
 
 {% block title %}My Notes - Personal Notebook{% endblock %}
 
@@ -318,7 +319,7 @@
                     {% if note.is_locked %}
                         <p class="locked-message">🔐 Encrypted note - click to unlock</p>
                     {% else %}
-                        <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
+                        <div class="note-preview" data-markdown="{{ note.content|escapejs }}" data-preview="true"></div>
                     {% endif %}
                     {% if note.tags.all %}
                         <div class="note-tags" onclick="event.stopPropagation()">
@@ -458,6 +459,26 @@
         if (!filterInput.contains(e.target) && !filterAutocomplete.contains(e.target)) {
             hideAutocomplete();
         }
+    });
+</script>
+
+<!-- Load marked.js for client-side markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
+
+<script>
+    // Render markdown previews client-side
+    document.addEventListener('DOMContentLoaded', function() {
+        const previews = document.querySelectorAll('.note-preview[data-markdown]');
+        
+        previews.forEach(preview => {
+            const markdown = preview.getAttribute('data-markdown');
+            if (markdown && window.markdownRenderer) {
+                // Render with non-interactive checkboxes (false = not interactive)
+                const html = window.markdownRenderer.renderPreview(markdown, 30);
+                preview.innerHTML = html;
+            }
+        });
     });
 </script>
 {% endblock %}

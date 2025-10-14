@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
+{% load static %}
 
 {% block title %}History - {{ note.title }} - Personal Notebook{% endblock %}
 
@@ -244,11 +245,11 @@
                     <span class="current-badge">CURRENT VERSION</span>
                 </div>
                 <div class="version-title">{{ note.title }}</div>
-                <div class="version-content" id="current-content" data-encrypted="{{ note.content }}" data-is-locked="{{ note.is_locked|yesno:'true,false' }}" data-salt="{{ note.salt }}">
+                <div class="version-content" id="current-content" data-encrypted="{{ note.content }}" data-is-locked="{{ note.is_locked|yesno:'true,false' }}" data-salt="{{ note.salt }}" data-markdown="{{ note.content|escapejs }}">
                     {% if note.is_locked %}
                         <em>🔒 Encrypted content - click "Decrypt History" to view</em>
                     {% else %}
-                        {{ note.content|markdown }}
+                        <!-- Content will be rendered client-side -->
                     {% endif %}
                 </div>
             </div>
@@ -263,11 +264,11 @@
                     {{ version.title }}
                     {% if version.is_locked %}<span class="lock-badge">🔒</span>{% endif %}
                 </div>
-                <div class="version-content version-{{ forloop.counter }}" data-encrypted="{{ version.content }}" data-is-locked="{{ version.is_locked|yesno:'true,false' }}" data-salt="{{ version.salt }}">
+                <div class="version-content version-{{ forloop.counter }}" data-encrypted="{{ version.content }}" data-is-locked="{{ version.is_locked|yesno:'true,false' }}" data-salt="{{ version.salt }}" data-markdown="{{ version.content|escapejs }}">
                     {% if version.is_locked %}
                         <em>🔒 Encrypted content - click "Decrypt History" to view</em>
                     {% else %}
-                        {{ version.content|markdown }}
+                        <!-- Content will be rendered client-side -->
                     {% endif %}
                 </div>
             </div>
@@ -294,6 +295,10 @@
         </div>
     </div>
 </div>
+
+<!-- Load marked.js for client-side markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
 
 <script>
 // Define global functions first
@@ -420,16 +425,21 @@ class NoteEncryption {
 
 const noteEncryption = new NoteEncryption();
 
-// Include marked.js for markdown parsing
-if (typeof marked === 'undefined') {
-    console.log('Loading marked.js for history...');
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
-    script.onload = function() {
-        console.log('marked.js loaded for history');
-    };
-    document.head.appendChild(script);
-}
+// Render non-encrypted content on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const contentElements = document.querySelectorAll('.version-content');
+    
+    contentElements.forEach(element => {
+        const isLocked = element.dataset.isLocked === 'true';
+        const markdown = element.dataset.markdown;
+        
+        // Only render non-encrypted content
+        if (!isLocked && markdown && window.markdownRenderer) {
+            // Render with non-interactive checkboxes for history view
+            element.innerHTML = window.markdownRenderer.render(markdown, false);
+        }
+    });
+});
 
 // Note data
 const noteData = {
@@ -474,9 +484,9 @@ window.decryptHistory = async function() {
                     console.log('Attempting to decrypt content for element...');
                     const decryptedContent = await noteEncryption.decrypt(encryptedContent, password, salt);
                     
-                    // Render as markdown if marked is available, otherwise as plain text
-                    if (typeof marked !== 'undefined') {
-                        element.innerHTML = marked.parse(decryptedContent);
+                    // Render as markdown using our renderer (non-interactive checkboxes for history)
+                    if (window.markdownRenderer) {
+                        element.innerHTML = window.markdownRenderer.render(decryptedContent, false);
                     } else {
                         element.innerHTML = '<pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">' + escapeHtml(decryptedContent) + '</pre>';
                     }
