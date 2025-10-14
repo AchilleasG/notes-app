@@ -569,6 +569,7 @@ def shared_note_create(request, friend_id):
         encrypted_content = request.POST.get("encrypted_content")
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", "")
+        tags_data = request.POST.get("tags", "")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -588,12 +589,48 @@ def shared_note_create(request, friend_id):
             )
             shared_note.save()
 
+            # Process tags
+            if tags_data:
+                import json
+
+                try:
+                    tags_list = json.loads(tags_data)
+                    for tag_data in tags_list:
+                        tag_name = tag_data.get("name", "").strip()
+                        tag_color = tag_data.get("color", "#3b82f6")
+                        if tag_name:
+                            # Get or create tag (case-insensitive)
+                            # Tags can be shared between users via shared notes
+                            try:
+                                tag = Tag.objects.get(
+                                    user=request.user, name__iexact=tag_name
+                                )
+                                # Update color if changed
+                                if tag.color != tag_color:
+                                    tag.color = tag_color
+                                    tag.save()
+                            except Tag.DoesNotExist:
+                                tag = Tag.objects.create(
+                                    user=request.user, name=tag_name, color=tag_color
+                                )
+                            shared_note.tags.add(tag)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
             messages.success(request, "Shared note created successfully!")
             return redirect("shared_notes_list", friend_id=friend_id)
         else:
             messages.error(request, "Title and content are required.")
 
-    return render(request, "notes/shared_note_form.html", {"friend": friend})
+    # Get tags that are used in shared notes with this friend
+    user_tags = Tag.objects.filter(
+        Q(user=request.user) | Q(user=friend),
+        shared_notes__in=SharedNote.objects.filter(
+            Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+        )
+    ).distinct()
+    
+    return render(request, "notes/shared_note_form.html", {"friend": friend, "user_tags": user_tags})
 
 
 @login_required
@@ -640,6 +677,7 @@ def shared_note_edit(request, note_id):
         encrypted_content = request.POST.get("encrypted_content")
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", shared_note.salt)
+        tags_data = request.POST.get("tags", "")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -651,17 +689,46 @@ def shared_note_edit(request, note_id):
             shared_note.salt = salt
             shared_note.save()
 
+            # Process tags
+            shared_note.tags.clear()  # Remove existing tags
+            if tags_data:
+                import json
+
+                try:
+                    tags_list = json.loads(tags_data)
+                    for tag_data in tags_list:
+                        tag_name = tag_data.get("name", "").strip()
+                        tag_color = tag_data.get("color", "#3b82f6")
+                        if tag_name:
+                            # Get or create tag (case-insensitive)
+                            try:
+                                tag = Tag.objects.get(
+                                    user=request.user, name__iexact=tag_name
+                                )
+                                # Update color if changed
+                                if tag.color != tag_color:
+                                    tag.color = tag_color
+                                    tag.save()
+                            except Tag.DoesNotExist:
+                                tag = Tag.objects.create(
+                                    user=request.user, name=tag_name, color=tag_color
+                                )
+                            shared_note.tags.add(tag)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
             messages.success(request, "Shared note updated successfully!")
             return redirect("shared_note_view", note_id=note_id)
         else:
             messages.error(request, "Title and content are required.")
-    # find all tags that have shared notes between the two users, menaing tags that are presnet in at least one of their shared notes
+    # find all tags that have shared notes between the two users, meaning tags that are present in at least one of their shared notes
     user_tags = Tag.objects.filter(
+        Q(user=request.user) | Q(user=friend),
         shared_notes__in=SharedNote.objects.filter(
             Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
         )
     ).distinct()
-    print("User tags:", user_tags)
+    
     return render(
         request,
         "notes/shared_note_form.html",

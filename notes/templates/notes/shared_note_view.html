@@ -122,6 +122,15 @@
     
     <div class="note-meta">
         Shared with {{ friend.username }} • Created by {{ shared_note.created_by.username }} • Last updated {{ shared_note.updated_at|date:"F d, Y g:i A" }}
+        {% if shared_note.tags.all %}
+        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for tag in shared_note.tags.all %}
+            <span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 500; color: white; background-color: {{ tag.color }};">
+                {{ tag.name }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
     
     {% if shared_note.is_locked %}
@@ -144,13 +153,102 @@
 </div>
 
 {% if shared_note.is_locked %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
     const encryptedContent = `{{ shared_note.content|escapejs }}`;
     const salt = `{{ shared_note.salt|escapejs }}`;
     
-    function decryptNote() {
+    // Client-side decryption using Web Crypto API
+    class NoteEncryption {
+        constructor() {
+            this.algorithm = 'AES-GCM';
+            this.keyLength = 256;
+            this.ivLength = 12;
+            this.saltLength = 16;
+            this.iterations = 100000;
+        }
+
+        async deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const passwordKey = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            return crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: this.iterations,
+                    hash: 'SHA-256'
+                },
+                passwordKey,
+                {
+                    name: this.algorithm,
+                    length: this.keyLength
+                },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async decrypt(encryptedText, password, saltHex) {
+            try {
+                // Convert base64 back to bytes
+                const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+                
+                // Extract salt from hex (stored separately in database)
+                const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+                
+                // Try to determine the format based on the length
+                let iv, encryptedData;
+                
+                if (combined.length >= this.saltLength + this.ivLength) {
+                    // Check if this might be the old format (salt + iv + data)
+                    const embeddedSalt = combined.slice(0, this.saltLength);
+                    const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                    
+                    if (saltMatches) {
+                        // Old format: salt + iv + encrypted data
+                        iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                        encryptedData = combined.slice(this.saltLength + this.ivLength);
+                    } else {
+                        // New format: iv + encrypted data
+                        iv = combined.slice(0, this.ivLength);
+                        encryptedData = combined.slice(this.ivLength);
+                    }
+                } else {
+                    // New format: iv + encrypted data
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+
+                const key = await this.deriveKey(password, salt);
+
+                const decryptedData = await crypto.subtle.decrypt(
+                    {
+                        name: this.algorithm,
+                        iv: iv
+                    },
+                    key,
+                    encryptedData
+                );
+
+                const decoder = new TextDecoder();
+                return decoder.decode(decryptedData);
+            } catch (error) {
+                console.error('Decryption failed:', error);
+                throw new Error('Failed to decrypt content - wrong password?');
+            }
+        }
+    }
+
+    const noteEncryption = new NoteEncryption();
+    
+    async function decryptNote() {
         const password = document.getElementById('decryptPassword').value;
         const errorMessage = document.getElementById('errorMessage');
         
@@ -161,14 +259,7 @@
         }
         
         try {
-            const decrypted = CryptoJS.AES.decrypt(encryptedContent, password + salt);
-            const decryptedText = decrypted.toString(CryptoJS.enc.Utf8);
-            
-            if (!decryptedText) {
-                errorMessage.textContent = 'Incorrect password. Please try again.';
-                errorMessage.style.display = 'block';
-                return;
-            }
+            const decryptedText = await noteEncryption.decrypt(encryptedContent, password, salt);
             
             // Hide encrypted placeholder and show content
             document.getElementById('encryptedPlaceholder').style.display = 'none';
