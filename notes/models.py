@@ -18,16 +18,18 @@ class CustomUser(AbstractUser):
 
 class Tag(models.Model):
     """Tag model for categorizing notes"""
-    
+
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="tags")
     name = models.CharField(max_length=50)
-    color = models.CharField(max_length=7, default="#3b82f6", help_text="Hex color code (e.g., #3b82f6)")
+    color = models.CharField(
+        max_length=7, default="#3b82f6", help_text="Hex color code (e.g., #3b82f6)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ["name"]
         unique_together = ["user", "name"]  # Each user can have unique tag names
-    
+
     def __str__(self):
         return self.name
 
@@ -45,7 +47,7 @@ class Note(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-updated_at"]
 
     def __str__(self):
         return self.title
@@ -58,7 +60,10 @@ class Note(models.Model):
             "content": self.content,  # Encrypted content
             "is_locked": self.is_locked,
             "salt": self.salt,
-            "tags": [{"id": tag.id, "name": tag.name, "color": tag.color} for tag in self.tags.all()],
+            "tags": [
+                {"id": tag.id, "name": tag.name, "color": tag.color}
+                for tag in self.tags.all()
+            ],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -94,8 +99,13 @@ class NoteVersion(models.Model):
 
 class Friendship(models.Model):
     """Represents a friendship between two users"""
-    user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="friendships_initiated")
-    user2 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="friendships_received")
+
+    user1 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="friendships_initiated"
+    )
+    user2 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="friendships_received"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -116,9 +126,7 @@ class Friendship(models.Model):
     @classmethod
     def get_friends(cls, user):
         """Get all friends of a user"""
-        friendships = cls.objects.filter(
-            models.Q(user1=user) | models.Q(user2=user)
-        )
+        friendships = cls.objects.filter(models.Q(user1=user) | models.Q(user2=user))
         friends = []
         for friendship in friendships:
             if friendship.user1 == user:
@@ -130,15 +138,20 @@ class Friendship(models.Model):
 
 class FriendRequest(models.Model):
     """Represents a friend request from one user to another"""
+
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('accepted', 'Accepted'),
-        ('rejected', 'Rejected'),
+        ("pending", "Pending"),
+        ("accepted", "Accepted"),
+        ("rejected", "Rejected"),
     ]
-    
-    from_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="friend_requests_sent")
-    to_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="friend_requests_received")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+
+    from_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="friend_requests_sent"
+    )
+    to_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="friend_requests_received"
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -153,8 +166,13 @@ class FriendRequest(models.Model):
 
 class SharedNote(models.Model):
     """A note shared between two friends"""
-    user1 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="shared_notes_1")
-    user2 = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="shared_notes_2")
+
+    user1 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="shared_notes_1"
+    )
+    user2 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="shared_notes_2"
+    )
     title = models.CharField(max_length=200)
     content = models.TextField()  # This will store encrypted content from client
     is_locked = models.BooleanField(default=False)
@@ -162,7 +180,12 @@ class SharedNote(models.Model):
     tags = models.ManyToManyField(Tag, related_name="shared_notes", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name="shared_notes_created")
+    created_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="shared_notes_created",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -178,7 +201,10 @@ class SharedNote(models.Model):
             "content": self.content,  # Encrypted content
             "is_locked": self.is_locked,
             "salt": self.salt,
-            "tags": [{"id": tag.id, "name": tag.name, "color": tag.color} for tag in self.tags.all()],
+            "tags": [
+                {"id": tag.id, "name": tag.name, "color": tag.color}
+                for tag in self.tags.all()
+            ],
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "created_by": self.created_by.username if self.created_by else None,
@@ -191,8 +217,13 @@ class SharedNote(models.Model):
 
 class ChatMessage(models.Model):
     """A chat message between two friends"""
-    from_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="messages_sent")
-    to_user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="messages_received")
+
+    from_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="messages_sent"
+    )
+    to_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="messages_received"
+    )
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -200,4 +231,6 @@ class ChatMessage(models.Model):
         ordering = ["created_at"]
 
     def __str__(self):
-        return f"{self.from_user.username} -> {self.to_user.username}: {self.message[:50]}"
+        return (
+            f"{self.from_user.username} -> {self.to_user.username}: {self.message[:50]}"
+        )
