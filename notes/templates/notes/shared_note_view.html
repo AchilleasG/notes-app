@@ -273,10 +273,17 @@
             const noteContent = document.getElementById('noteContent');
             
             // Render with client-side markdown renderer (interactive checkboxes)
-            if (window.markdownRenderer) {
-                noteContent.innerHTML = window.markdownRenderer.render(decryptedText, true);
-            } else {
+            if (window.markdownRenderer && typeof marked !== 'undefined') {
+                try {
+                    noteContent.innerHTML = window.markdownRenderer.render(decryptedText, true);
+                } catch (error) {
+                    console.error('Failed to render decrypted content:', error);
+                    noteContent.innerHTML = '<pre>' + decryptedText + '</pre>';
+                }
+            } else if (typeof marked !== 'undefined') {
                 noteContent.innerHTML = marked.parse(decryptedText);
+            } else {
+                noteContent.innerHTML = '<pre>' + decryptedText + '</pre>';
             }
             
             noteContent.style.display = 'block';
@@ -315,8 +322,13 @@
         const noteContent = document.getElementById('noteContent');
         const content = `{{ shared_note.content|escapejs }}`;
         
-        if (noteContent && window.markdownRenderer) {
-            noteContent.innerHTML = window.markdownRenderer.render(content, true);
+        if (noteContent && window.markdownRenderer && typeof marked !== 'undefined') {
+            try {
+                noteContent.innerHTML = window.markdownRenderer.render(content, true);
+            } catch (error) {
+                console.error('Failed to render shared note:', error);
+                noteContent.innerHTML = '<pre>' + content + '</pre>';
+            }
             
             // Initialize checkbox handlers for shared notes
             if (window.checkboxHandler) {

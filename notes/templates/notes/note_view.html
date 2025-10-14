@@ -939,9 +939,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Render the content client-side
         const contentDiv = document.getElementById('noteContent');
-        if (window.markdownRenderer && contentDiv) {
-            const html = window.markdownRenderer.render(noteData.content, true); // true = interactive checkboxes
-            contentDiv.innerHTML = html;
+        if (window.markdownRenderer && contentDiv && typeof marked !== 'undefined') {
+            try {
+                const html = window.markdownRenderer.render(noteData.content, true); // true = interactive checkboxes
+                contentDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to render content:', error);
+                contentDiv.innerHTML = '<pre>' + noteData.content + '</pre>';
+            }
+        } else if (contentDiv) {
+            console.error('Markdown renderer or marked.js not available');
+            contentDiv.innerHTML = '<pre>' + noteData.content + '</pre>';
         }
         
         // Initialize checkbox handlers

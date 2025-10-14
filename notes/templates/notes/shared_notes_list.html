@@ -230,17 +230,33 @@
 
 <script>
     // Render markdown previews client-side
-    document.addEventListener('DOMContentLoaded', function() {
+    function renderPreviews() {
         const previews = document.querySelectorAll('.note-preview[data-markdown]');
         
         previews.forEach(preview => {
             const markdown = preview.getAttribute('data-markdown');
-            if (markdown && window.markdownRenderer) {
-                // Render with non-interactive checkboxes (false = not interactive)
-                const html = window.markdownRenderer.renderPreview(markdown, 30);
-                preview.innerHTML = html;
+            if (markdown && window.markdownRenderer && typeof marked !== 'undefined') {
+                try {
+                    // Render with non-interactive checkboxes (false = not interactive)
+                    const html = window.markdownRenderer.renderPreview(markdown, 30);
+                    preview.innerHTML = html;
+                } catch (error) {
+                    console.error('Failed to render preview:', error);
+                    preview.innerHTML = markdown.substring(0, 100) + '...';
+                }
             }
         });
-    });
+    }
+    
+    // Wait for both DOM and marked.js to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            // Give marked.js a moment to load
+            setTimeout(renderPreviews, 100);
+        });
+    } else {
+        // DOM already loaded
+        setTimeout(renderPreviews, 100);
+    }
 </script>
 {% endblock %}

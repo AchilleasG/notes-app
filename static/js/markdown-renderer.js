@@ -7,18 +7,7 @@
 class MarkdownRenderer {
     constructor() {
         this.checkboxIdCounter = 0;
-        
-        // Configure marked.js options
-        if (typeof marked !== 'undefined') {
-            marked.setOptions({
-                breaks: true,
-                gfm: true,
-                tables: true,
-                sanitize: false,
-                smartLists: true,
-                smartypants: false
-            });
-        }
+        this.markedConfigured = false;
     }
 
     /**
@@ -29,6 +18,28 @@ class MarkdownRenderer {
      */
     render(markdown, interactiveCheckboxes = true) {
         if (!markdown) return '';
+        
+        // Ensure marked.js is available
+        if (typeof marked === 'undefined') {
+            console.error('marked.js not loaded yet');
+            return '<p>Loading markdown renderer...</p>';
+        }
+        
+        // Configure marked.js if not already configured
+        if (!this.markedConfigured) {
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                tables: true,
+                sanitize: false,
+                smartLists: true,
+                smartypants: false
+            });
+            this.markedConfigured = true;
+        }
+        
+        // Reset checkbox counter for each render to avoid ID conflicts
+        this.checkboxIdCounter = 0;
         
         // Use marked.js to render markdown
         let html = marked.parse(markdown);
@@ -47,27 +58,29 @@ class MarkdownRenderer {
      */
     processCheckboxes(html, interactive) {
         // Replace task list checkboxes with custom styled ones
-        // Match: <li><input type="checkbox" ...> Text</li>
-        
-        // Unchecked checkboxes
+        // Process checked checkboxes FIRST (more specific pattern)
         html = html.replace(
-            /<li>\s*<input[^>]*type="checkbox"[^>]*>\s*/gi,
-            (match) => {
-                const checkboxId = `checkbox-${this.checkboxIdCounter++}`;
-                const disabledAttr = interactive ? '' : ' disabled';
-                const className = interactive ? 'task-checkbox interactive' : 'task-checkbox';
-                return `<li class="task-list-item"><input type="checkbox" class="${className}" id="${checkboxId}" data-checked="false"${disabledAttr}><label for="${checkboxId}"></label>`;
-            }
-        );
-        
-        // Checked checkboxes
-        html = html.replace(
-            /<li>\s*<input[^>]*type="checkbox"[^>]*checked[^>]*>\s*/gi,
-            (match) => {
+            /<li>\s*<input([^>]*)type="checkbox"([^>]*)checked([^>]*)>\s*/gi,
+            (match, before, middle, after) => {
                 const checkboxId = `checkbox-${this.checkboxIdCounter++}`;
                 const disabledAttr = interactive ? '' : ' disabled';
                 const className = interactive ? 'task-checkbox interactive' : 'task-checkbox';
                 return `<li class="task-list-item"><input type="checkbox" class="${className}" id="${checkboxId}" data-checked="true" checked${disabledAttr}><label for="${checkboxId}"></label>`;
+            }
+        );
+        
+        // Then process unchecked checkboxes (will not match already processed checked ones)
+        html = html.replace(
+            /<li>\s*<input([^>]*)type="checkbox"([^>]*)>\s*/gi,
+            (match, before, after) => {
+                // Skip if this is already a processed checkbox
+                if (match.includes('task-checkbox')) {
+                    return match;
+                }
+                const checkboxId = `checkbox-${this.checkboxIdCounter++}`;
+                const disabledAttr = interactive ? '' : ' disabled';
+                const className = interactive ? 'task-checkbox interactive' : 'task-checkbox';
+                return `<li class="task-list-item"><input type="checkbox" class="${className}" id="${checkboxId}" data-checked="false"${disabledAttr}><label for="${checkboxId}"></label>`;
             }
         );
         
@@ -82,6 +95,12 @@ class MarkdownRenderer {
      */
     renderPreview(markdown, wordCount = 30) {
         if (!markdown) return '';
+        
+        // Ensure marked.js is available
+        if (typeof marked === 'undefined') {
+            console.error('marked.js not loaded yet for preview');
+            return '<p>Loading...</p>';
+        }
         
         // First render the full markdown
         let html = this.render(markdown, false); // Non-interactive for previews
