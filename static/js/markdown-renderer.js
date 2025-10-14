@@ -6,7 +6,6 @@
 
 class MarkdownRenderer {
     constructor() {
-        this.checkboxIdCounter = 0;
         this.markedConfigured = false;
     }
 
@@ -38,53 +37,58 @@ class MarkdownRenderer {
             this.markedConfigured = true;
         }
         
-        // Reset checkbox counter for each render to avoid ID conflicts
-        this.checkboxIdCounter = 0;
-        
         // Use marked.js to render markdown
         let html = marked.parse(markdown);
         
-        // Post-process to add custom checkbox styling
-        html = this.processCheckboxes(html, interactiveCheckboxes);
+        // Post-process to replace checkboxes with custom HTML
+        html = this.replaceCheckboxesWithCustomHTML(html, interactiveCheckboxes);
         
         return html;
     }
 
     /**
-     * Process checkboxes to add custom styling and behavior
+     * Replace all checkboxes with custom HTML elements
      * @param {string} html - The HTML to process
      * @param {boolean} interactive - Whether checkboxes should be clickable
      * @returns {string} - The processed HTML
      */
-    processCheckboxes(html, interactive) {
-        // Replace task list checkboxes with custom styled ones
-        // Process checked checkboxes FIRST (more specific pattern)
-        html = html.replace(
-            /<li>\s*<input([^>]*)type="checkbox"([^>]*)checked([^>]*)>\s*/gi,
-            (match, before, middle, after) => {
-                const checkboxId = `checkbox-${this.checkboxIdCounter++}`;
-                const disabledAttr = interactive ? '' : ' disabled';
-                const className = interactive ? 'task-checkbox interactive' : 'task-checkbox';
-                return `<li class="task-list-item"><input type="checkbox" class="${className}" id="${checkboxId}" data-checked="true" checked${disabledAttr}><label for="${checkboxId}"></label>`;
-            }
-        );
+    replaceCheckboxesWithCustomHTML(html, interactive) {
+        let checkboxCounter = 0;
         
-        // Then process unchecked checkboxes (will not match already processed checked ones)
-        html = html.replace(
-            /<li>\s*<input([^>]*)type="checkbox"([^>]*)>\s*/gi,
-            (match, before, after) => {
-                // Skip if this is already a processed checkbox
-                if (match.includes('task-checkbox')) {
-                    return match;
+        // Create a temporary div to parse HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        // Find all list items with checkboxes
+        const listItems = tempDiv.querySelectorAll('li');
+        
+        listItems.forEach(li => {
+            const checkbox = li.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                const isChecked = checkbox.checked || checkbox.hasAttribute('checked');
+                const checkboxId = `checkbox-${checkboxCounter++}`;
+                
+                // Create custom checkbox HTML
+                const customCheckbox = document.createElement('span');
+                customCheckbox.className = interactive ? 'custom-checkbox interactive' : 'custom-checkbox';
+                customCheckbox.setAttribute('data-checkbox-id', checkboxId);
+                customCheckbox.setAttribute('data-checked', isChecked ? 'true' : 'false');
+                customCheckbox.innerHTML = isChecked ? '☑' : '☐';
+                
+                if (!interactive) {
+                    customCheckbox.style.cursor = 'default';
+                    customCheckbox.style.pointerEvents = 'none';
                 }
-                const checkboxId = `checkbox-${this.checkboxIdCounter++}`;
-                const disabledAttr = interactive ? '' : ' disabled';
-                const className = interactive ? 'task-checkbox interactive' : 'task-checkbox';
-                return `<li class="task-list-item"><input type="checkbox" class="${className}" id="${checkboxId}" data-checked="false"${disabledAttr}><label for="${checkboxId}"></label>`;
+                
+                // Add task-list-item class to li
+                li.classList.add('task-list-item');
+                
+                // Replace the original checkbox with custom one
+                checkbox.parentNode.replaceChild(customCheckbox, checkbox);
             }
-        );
+        });
         
-        return html;
+        return tempDiv.innerHTML;
     }
 
     /**
@@ -137,60 +141,26 @@ class MarkdownRenderer {
                 padding-left: 0;
             }
             
-            .task-checkbox {
-                appearance: none;
-                -webkit-appearance: none;
-                width: 20px;
-                height: 20px;
-                border: 2px solid var(--border-primary);
-                border-radius: 4px;
-                background: var(--bg-primary);
-                cursor: pointer;
-                position: relative;
+            .custom-checkbox {
+                display: inline-block;
+                font-size: 20px;
+                line-height: 1;
+                margin-right: 8px;
+                user-select: none;
                 vertical-align: middle;
-                margin-right: 10px;
-                transition: all 0.2s ease;
             }
             
-            .task-checkbox:hover:not(:disabled) {
-                border-color: var(--accent-primary);
-                background: var(--accent-light);
+            .custom-checkbox.interactive {
+                cursor: pointer;
+                transition: transform 0.1s ease;
             }
             
-            .task-checkbox:checked {
-                background: var(--accent-primary);
-                border-color: var(--accent-primary);
+            .custom-checkbox.interactive:hover {
+                transform: scale(1.1);
             }
             
-            .task-checkbox:checked::after {
-                content: '✓';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            
-            .task-checkbox:disabled {
-                cursor: default;
-                opacity: 0.6;
-            }
-            
-            .task-checkbox:disabled:hover {
-                border-color: var(--border-primary);
-                background: var(--bg-primary);
-            }
-            
-            .task-checkbox:disabled:checked {
-                background: var(--accent-primary);
-                opacity: 0.6;
-            }
-            
-            /* Hide the default label (we use the checkbox itself) */
-            .task-checkbox + label {
-                display: none;
+            .custom-checkbox.interactive:active {
+                transform: scale(0.95);
             }
         `;
     }

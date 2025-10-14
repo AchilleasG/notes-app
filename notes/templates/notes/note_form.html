@@ -463,7 +463,7 @@
         }
     }
     
-    // Insert checklist item at the beginning of the current line
+    // Insert or toggle checklist item at the beginning of the current line
     function insertChecklistItem() {
         const textarea = document.getElementById('content');
         const start = textarea.selectionStart;
@@ -475,14 +475,41 @@
             lineStart--;
         }
         
-        // Insert the checklist marker at the beginning of the line
-        const before = text.substring(0, lineStart);
-        const after = text.substring(lineStart);
-        textarea.value = before + '- [ ] ' + after;
+        // Find the end of the current line
+        let lineEnd = start;
+        while (lineEnd < text.length && text[lineEnd] !== '\n') {
+            lineEnd++;
+        }
         
-        // Position cursor after the checkbox marker
-        const newCursorPos = lineStart + 6; // Length of '- [ ] '
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        // Get the current line
+        const currentLine = text.substring(lineStart, lineEnd);
+        
+        // Check if line already has a checkbox
+        const checkboxPattern = /^(\s*)-\s*\[([ xX])\]\s*/;
+        const match = currentLine.match(checkboxPattern);
+        
+        if (match) {
+            // Line has checkbox - remove it
+            const before = text.substring(0, lineStart);
+            const after = text.substring(lineStart);
+            const newLine = after.replace(checkboxPattern, '$1');
+            textarea.value = before + newLine;
+            
+            // Position cursor at the same relative position
+            const removedLength = match[0].length - match[1].length;
+            const newCursorPos = Math.max(lineStart + match[1].length, start - removedLength);
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        } else {
+            // No checkbox - insert one at the beginning of the line
+            const before = text.substring(0, lineStart);
+            const after = text.substring(lineStart);
+            textarea.value = before + '- [ ] ' + after;
+            
+            // Position cursor after the checkbox marker
+            const newCursorPos = lineStart + 6; // Length of '- [ ] '
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }
+        
         textarea.focus();
     }
     

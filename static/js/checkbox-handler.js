@@ -7,13 +7,12 @@ class CheckboxHandler {
     constructor() {
         this.currentContent = '';
         this.noteId = null;
-        this.noteType = 'regular'; // 'regular' or 'shared'
         this.isEncrypted = false;
         this.encryptionPassword = null;
         this.encryptionSalt = null;
         this.updateUrl = null;
         this.csrfToken = null;
-        this.onContentUpdate = null; // Callback after content update
+        this.listenerAttached = false;
     }
 
     /**
@@ -23,16 +22,17 @@ class CheckboxHandler {
     init(config) {
         this.currentContent = config.content || '';
         this.noteId = config.noteId;
-        this.noteType = config.noteType || 'regular';
         this.isEncrypted = config.isEncrypted || false;
         this.encryptionPassword = config.encryptionPassword || null;
         this.encryptionSalt = config.encryptionSalt || null;
         this.updateUrl = config.updateUrl;
         this.csrfToken = config.csrfToken || this.getCSRFToken();
-        this.onContentUpdate = config.onContentUpdate || null;
         
-        // Attach event listeners
-        this.attachCheckboxListeners();
+        // Attach event listeners (only once)
+        if (!this.listenerAttached) {
+            this.attachCheckboxListeners();
+            this.listenerAttached = true;
+        }
     }
 
     /**
@@ -63,9 +63,8 @@ class CheckboxHandler {
     attachCheckboxListeners() {
         // Use event delegation on the document
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('task-checkbox') && 
-                e.target.classList.contains('interactive') &&
-                !e.target.disabled) {
+            if (e.target.classList.contains('custom-checkbox') && 
+                e.target.classList.contains('interactive')) {
                 this.handleCheckboxClick(e.target);
             }
         });
@@ -73,52 +72,51 @@ class CheckboxHandler {
 
     /**
      * Handle checkbox click
-     * @param {HTMLInputElement} checkbox - The clicked checkbox
+     * @param {HTMLElement} checkboxSpan - The clicked checkbox span element
      */
-    async handleCheckboxClick(checkbox) {
-        // Prevent default to handle it ourselves
-        const newCheckedState = checkbox.checked;
+    async handleCheckboxClick(checkboxSpan) {
+        // Get current state and toggle it
+        const currentState = checkboxSpan.getAttribute('data-checked') === 'true';
+        const newState = !currentState;
         
-        // Find the position of this checkbox in the markdown
-        const checkboxIndex = this.findCheckboxIndex(checkbox);
+        // Find the index of this checkbox
+        const checkboxIndex = this.findCheckboxIndex(checkboxSpan);
         
         if (checkboxIndex === -1) {
-            console.error('Could not find checkbox in markdown');
+            console.error('Could not find checkbox index');
             return;
         }
         
         // Update the markdown content
-        const updatedContent = this.updateCheckboxInMarkdown(this.currentContent, checkboxIndex, newCheckedState);
+        const updatedContent = this.updateCheckboxInMarkdown(this.currentContent, checkboxIndex, newState);
         
         // Save the updated content
         try {
             await this.saveNoteContent(updatedContent);
+            
+            // Update the visual state only after successful save
+            checkboxSpan.setAttribute('data-checked', newState ? 'true' : 'false');
+            checkboxSpan.innerHTML = newState ? '☑' : '☐';
+            
             this.currentContent = updatedContent;
             console.log('Checkbox state saved successfully');
-            
-            // Call the callback if provided
-            if (this.onContentUpdate) {
-                this.onContentUpdate(updatedContent);
-            }
         } catch (error) {
             console.error('Failed to save checkbox state:', error);
-            // Revert the checkbox state
-            checkbox.checked = !newCheckedState;
             alert('Failed to save checkbox state. Please try again.');
         }
     }
 
     /**
-     * Find the index of a checkbox in the markdown
-     * @param {HTMLInputElement} checkbox - The checkbox element
+     * Find the index of a checkbox in the document
+     * @param {HTMLElement} checkboxSpan - The checkbox span element
      * @returns {number} - The index of the checkbox (0-based)
      */
-    findCheckboxIndex(checkbox) {
-        // Find all checkboxes in the document
-        const allCheckboxes = document.querySelectorAll('.task-checkbox.interactive');
+    findCheckboxIndex(checkboxSpan) {
+        // Find all interactive checkboxes in the document
+        const allCheckboxes = document.querySelectorAll('.custom-checkbox.interactive');
         
         for (let i = 0; i < allCheckboxes.length; i++) {
-            if (allCheckboxes[i] === checkbox) {
+            if (allCheckboxes[i] === checkboxSpan) {
                 return i;
             }
         }
