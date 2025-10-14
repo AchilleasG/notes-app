@@ -104,6 +104,22 @@
         border-top: 1px solid var(--border-secondary);
     }
     
+    .note-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+    }
+    
+    .note-tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: white;
+    }
+    
     .note-actions {
         display: flex;
         gap: 8px;
@@ -181,6 +197,13 @@
                     {% endif %}
                     <div class="note-meta">
                         Created by {{ note.created_by.username }} • Updated {{ note.updated_at|date:"M d, Y" }}
+                        {% if note.tags.all %}
+                        <div class="note-tags">
+                            {% for tag in note.tags.all %}
+                            <span class="note-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="note-actions" onclick="event.stopPropagation()">
                         <a href="{% url 'shared_note_view' note.id %}" class="btn btn-primary">Open</a>
