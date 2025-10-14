@@ -531,7 +531,7 @@
                     </button>
                 </div>
             {% else %}
-                {{ note.content|markdown }}
+                <!-- Content will be rendered client-side -->
             {% endif %}
         </div>
         
@@ -576,6 +576,13 @@
 
 <!-- CSRF Token for AJAX requests -->
 {% csrf_token %}
+
+<!-- Load marked.js for client-side markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Load our markdown renderer and checkbox handler -->
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
+<script src="{% static 'js/checkbox-handler.js' %}"></script>
 
 <script>
 /**
@@ -877,156 +884,43 @@ async function decryptNoteWithPassword(password) {
 }
 
 async function renderDecryptedContent(markdownContent, contentDiv) {
-    try {
-        // Send the markdown to server for rendering with the same filter
-        const response = await fetch('/render-markdown/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: new URLSearchParams({
-                'content': markdownContent
-            })
-        });
-        
-        if (response.ok) {
-            const html = await response.text();
-            contentDiv.innerHTML = html;
-        } else {
-            // Fallback to simple text rendering
-            contentDiv.innerHTML = '<pre>' + markdownContent + '</pre>';
-        }
-    } catch (error) {
-        console.error('Failed to render markdown on server:', error);
-        // Fallback to simple text rendering
+    // Client-side markdown rendering - no server communication
+    if (typeof window.markdownRenderer !== 'undefined') {
+        const html = window.markdownRenderer.render(markdownContent, true); // true = interactive checkboxes
+        contentDiv.innerHTML = html;
+    } else {
+        // Fallback if renderer not loaded
         contentDiv.innerHTML = '<pre>' + markdownContent + '</pre>';
     }
 }
 
 function initializeCheckboxHandlers() {
     console.log('initializeCheckboxHandlers called');
-    // Find all checkboxes in task lists
-    const checkboxes = document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]');
-    console.log('Found checkboxes:', checkboxes.length);
     
-    checkboxes.forEach(function(checkbox, index) {
-        console.log('Setting up handler for checkbox', index, checkbox);
-        checkbox.removeEventListener('change', handleCheckboxChange); // Remove old listeners
-        checkbox.addEventListener('change', function() {
-            console.log('Checkbox', index, 'changed to', this.checked);
-            handleCheckboxChange(index, this.checked);
-        });
-    });
-}
-
-async function handleCheckboxChange(checkboxIndex, isChecked) {
-    try {
-        console.log('handleCheckboxChange called:', checkboxIndex, isChecked);
+    // Initialize the checkbox handler with note configuration
+    if (typeof window.checkboxHandler !== 'undefined') {
+        const password = noteData.isLocked ? window.noteEncryption.getCachedPassword(noteData.id) : null;
         
-        // Get the current decrypted content
-        const contentDiv = document.getElementById('noteContent');
-        const currentContent = extractMarkdownFromDOM(contentDiv);
-        
-        console.log('Current content for checkbox update:', currentContent.substring(0, 100) + '...');
-        
-        // Update the checkbox in the markdown
-        const updatedContent = updateMarkdownCheckbox(currentContent, checkboxIndex, isChecked);
-        
-        console.log('Updated content:', updatedContent.substring(0, 100) + '...');
-        
-        // Update the current working content
-        currentWorkingContent = updatedContent;
-        
-        // If note is locked, encrypt the content before sending
-        let contentToSend = updatedContent;
-        if (noteData.isLocked) {
-            console.log('Note is locked, encrypting content before sending...');
-            const password = window.noteEncryption.getCachedPassword(noteData.id);
-            if (!password) {
-                alert('Password not cached. Please decrypt the note again.');
-                return;
+        window.checkboxHandler.init({
+            content: currentWorkingContent,
+            noteId: noteData.id,
+            noteType: 'regular',
+            isEncrypted: noteData.isLocked,
+            encryptionPassword: password,
+            encryptionSalt: noteData.salt,
+            updateUrl: `/edit/${noteData.id}/`,
+            csrfToken: document.querySelector('[name=csrfmiddlewaretoken]').value,
+            onContentUpdate: (updatedContent) => {
+                // Update our local content reference
+                currentWorkingContent = updatedContent;
+                console.log('Content updated via checkbox');
             }
-            
-            const encrypted = await window.noteEncryption.encrypt(updatedContent, password);
-            contentToSend = encrypted.encrypted;
-            
-            // Update the salt to the new one generated during encryption
-            noteData.salt = encrypted.salt;
-            
-            console.log('Content encrypted for sending with new salt:', encrypted.salt);
-        }
-        
-        // Send AJAX request to update the note content
-        const response = await fetch(`/edit/${noteData.id}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: new URLSearchParams({
-                'title': noteData.title,
-                'content': contentToSend,
-                'salt': noteData.salt,
-                'is_locked': noteData.isLocked ? 'on' : '',
-                'ajax_update': 'true'
-            })
         });
         
-        if (!response.ok) {
-            throw new Error('Save failed');
-        }
-        
-        console.log('Checkbox update saved successfully');
-        
-        // For encrypted notes, just re-render the current working content without re-decrypting
-        if (noteData.isLocked) {
-            console.log('Re-rendering decrypted content after checkbox update...');
-            const contentDiv = document.getElementById('noteContent');
-            await renderDecryptedContent(currentWorkingContent, contentDiv);
-            
-            // Re-initialize checkbox handlers after re-rendering
-            setTimeout(() => {
-                console.log('Re-initializing checkbox handlers after update...');
-                initializeCheckboxHandlers();
-            }, 50);
-        }
-        
-    } catch (error) {
-        console.error('Checkbox update failed:', error);
-        alert('Failed to save checkbox state');
-        // Revert checkbox state
-        const checkbox = document.querySelectorAll('#noteContent .task-list-item input[type="checkbox"]')[checkboxIndex];
-        checkbox.checked = !isChecked;
+        console.log('Checkbox handler initialized');
+    } else {
+        console.error('Checkbox handler not loaded');
     }
-}
-
-function extractMarkdownFromDOM(element) {
-    // Return the current working content (which is the decrypted content for encrypted notes)
-    return currentWorkingContent;
-}
-
-function updateMarkdownCheckbox(content, checkboxIndex, isChecked) {
-    const lines = content.split('\n');
-    let currentCheckboxIndex = 0;
-    
-    for (let i = 0; i < lines.length; i++) {
-        // Check if this line contains a task list item
-        if (lines[i].match(/^[\s]*-\s*\[[x\s]\]/)) {
-            if (currentCheckboxIndex === checkboxIndex) {
-                // Update this checkbox
-                if (isChecked) {
-                    lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[x]');
-                } else {
-                    lines[i] = lines[i].replace(/^([\s]*-\s*)\[[x\s]\]/, '$1[ ]');
-                }
-                break;
-            }
-            currentCheckboxIndex++;
-        }
-    }
-    
-    return lines.join('\n');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1038,22 +932,19 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.log('noteEncryption loaded successfully');
     }
-    
-    // Include marked.js for markdown parsing
-    if (typeof marked === 'undefined') {
-        console.log('Loading marked.js...');
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
-        script.onload = function() {
-            console.log('marked.js loaded');
-        };
-        document.head.appendChild(script);
-    }
 
     // Initialize checkbox handlers if note is not locked or auto-decrypt if password is cached
     if (!noteData.isLocked) {
-        console.log('Note is not locked, initializing checkbox handlers');
-        // Add a small delay to ensure DOM is fully rendered
+        console.log('Note is not locked, rendering content client-side');
+        
+        // Render the content client-side
+        const contentDiv = document.getElementById('noteContent');
+        if (window.markdownRenderer && contentDiv) {
+            const html = window.markdownRenderer.render(noteData.content, true); // true = interactive checkboxes
+            contentDiv.innerHTML = html;
+        }
+        
+        // Initialize checkbox handlers
         setTimeout(() => {
             initializeCheckboxHandlers();
         }, 100);
