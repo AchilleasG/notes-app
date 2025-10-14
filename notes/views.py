@@ -665,7 +665,7 @@ def shared_note_edit(request, note_id):
     return render(
         request,
         "notes/shared_note_form.html",
-        {"note": shared_note, "user_tags": user_tags},
+        {"note": shared_note, "user_tags": user_tags, "friend": friend},
     )
 
 
