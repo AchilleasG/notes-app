@@ -17,13 +17,13 @@ class MarkdownRenderer {
      */
     render(markdown, interactiveCheckboxes = true) {
         if (!markdown) return '';
-        
+
         // Ensure marked.js is available
         if (typeof marked === 'undefined') {
             console.error('marked.js not loaded yet');
             return '<p>Loading markdown renderer...</p>';
         }
-        
+
         // Configure marked.js if not already configured
         if (!this.markedConfigured) {
             marked.setOptions({
@@ -36,13 +36,13 @@ class MarkdownRenderer {
             });
             this.markedConfigured = true;
         }
-        
+
         // Use marked.js to render markdown
         let html = marked.parse(markdown);
-        
+
         // Post-process to replace checkboxes with custom HTML
         html = this.replaceCheckboxesWithCustomHTML(html, interactiveCheckboxes);
-        
+
         return html;
     }
 
@@ -54,40 +54,40 @@ class MarkdownRenderer {
      */
     replaceCheckboxesWithCustomHTML(html, interactive) {
         let checkboxCounter = 0;
-        
+
         // Create a temporary div to parse HTML
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
-        
+
         // Find all list items with checkboxes
         const listItems = tempDiv.querySelectorAll('li');
-        
+
         listItems.forEach(li => {
             const checkbox = li.querySelector('input[type="checkbox"]');
             if (checkbox) {
                 const isChecked = checkbox.checked || checkbox.hasAttribute('checked');
                 const checkboxId = `checkbox-${checkboxCounter++}`;
-                
+
                 // Create custom checkbox HTML
                 const customCheckbox = document.createElement('span');
                 customCheckbox.className = interactive ? 'custom-checkbox interactive' : 'custom-checkbox';
                 customCheckbox.setAttribute('data-checkbox-id', checkboxId);
                 customCheckbox.setAttribute('data-checked', isChecked ? 'true' : 'false');
                 customCheckbox.innerHTML = isChecked ? '☑' : '☐';
-                
+
                 if (!interactive) {
                     customCheckbox.style.cursor = 'default';
                     customCheckbox.style.pointerEvents = 'none';
                 }
-                
+
                 // Add task-list-item class to li
                 li.classList.add('task-list-item');
-                
+
                 // Replace the original checkbox with custom one
                 checkbox.parentNode.replaceChild(customCheckbox, checkbox);
             }
         });
-        
+
         return tempDiv.innerHTML;
     }
 
@@ -99,32 +99,50 @@ class MarkdownRenderer {
      */
     renderPreview(markdown, wordCount = 30) {
         if (!markdown) return '';
-        
+
         // Ensure marked.js is available
         if (typeof marked === 'undefined') {
             console.error('marked.js not loaded yet for preview');
             return '<p>Loading...</p>';
         }
-        
+
         // First render the full markdown
         let html = this.render(markdown, false); // Non-interactive for previews
-        
+
         // Strip HTML tags to count words
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
         const text = tempDiv.textContent || tempDiv.innerText || '';
-        
+
         // Split into words
         const words = text.trim().split(/\s+/);
-        
+
         if (words.length <= wordCount) {
             return html;
         }
-        
-        // Truncate the original markdown and re-render
-        const markdownWords = markdown.trim().split(/\s+/);
-        const truncatedMarkdown = markdownWords.slice(0, wordCount).join(' ');
-        
+
+        // Truncate by counting words while preserving structure
+        let currentWordCount = 0;
+        let truncatedMarkdown = '';
+        const lines = markdown.split('\n');
+
+        for (let line of lines) {
+            const lineWords = line.trim().split(/\s+/).filter(w => w.length > 0);
+
+            if (currentWordCount + lineWords.length <= wordCount) {
+                truncatedMarkdown += line + '\n';
+                currentWordCount += lineWords.length;
+            } else {
+                // Add partial line if we have room
+                const remainingWords = wordCount - currentWordCount;
+                if (remainingWords > 0) {
+                    const partialLine = lineWords.slice(0, remainingWords).join(' ');
+                    truncatedMarkdown += partialLine;
+                }
+                break;
+            }
+        }
+
         return this.render(truncatedMarkdown, false) + '...';
     }
 
@@ -172,12 +190,12 @@ window.markdownRenderer = new MarkdownRenderer();
 // Function to inject checkbox styles into the page
 function injectCheckboxStyles() {
     const styleId = 'markdown-checkbox-styles';
-    
+
     // Check if styles already injected
     if (document.getElementById(styleId)) {
         return;
     }
-    
+
     const styleElement = document.createElement('style');
     styleElement.id = styleId;
     styleElement.textContent = MarkdownRenderer.getCheckboxStyles();
