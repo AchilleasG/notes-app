@@ -425,16 +425,45 @@ class NoteEncryption {
 
 const noteEncryption = new NoteEncryption();
 
+// Helper function to unescape markdown content
+function unescapeMarkdown(markdown) {
+    if (!markdown) return '';
+    
+    // Unescape the content - Django's escapejs creates escaped strings
+    // We need to properly decode escape sequences
+    return markdown
+        .replace(/\\u000D\\u000A/g, '\n')  // Windows line ending
+        .replace(/\\u000A/g, '\n')          // Unix line ending
+        .replace(/\\u000D/g, '\n')          // Mac line ending
+        .replace(/\\u0022/g, '"')           // Escaped double quote
+        .replace(/\\u0027/g, "'")           // Escaped single quote
+        .replace(/\\u002D/g, '-')           // Escaped dash/hyphen
+        .replace(/\\u005B/g, '[')           // Escaped left bracket
+        .replace(/\\u005D/g, ']')           // Escaped right bracket
+        .replace(/\\u003C/g, '<')           // Escaped less than
+        .replace(/\\u003E/g, '>')           // Escaped greater than
+        .replace(/\\u0026/g, '&')           // Escaped ampersand
+        .replace(/\\n/g, '\n')              // Escaped newline
+        .replace(/\\r/g, '\r')              // Escaped carriage return
+        .replace(/\\t/g, '\t')              // Escaped tab
+        .replace(/\\"/g, '"')               // Escaped quote
+        .replace(/\\'/g, "'")               // Escaped single quote
+        .replace(/\\\\/g, '\\');            // Escaped backslash
+}
+
 // Render non-encrypted content on page load
 document.addEventListener('DOMContentLoaded', function() {
     const contentElements = document.querySelectorAll('.version-content');
     
     contentElements.forEach(element => {
         const isLocked = element.dataset.isLocked === 'true';
-        const markdown = element.dataset.markdown;
+        let markdown = element.dataset.markdown;
         
         // Only render non-encrypted content
         if (!isLocked && markdown && window.markdownRenderer) {
+            // Unescape the markdown content first
+            markdown = unescapeMarkdown(markdown);
+            
             // Render with non-interactive checkboxes for history view
             element.innerHTML = window.markdownRenderer.render(markdown, false);
         }
