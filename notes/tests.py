@@ -341,3 +341,122 @@ class TagsTestCase(TestCase):
         )
         tag2 = Tag.objects.create(user=other_user, name='Python', color='#16a34a')
         self.assertEqual(tag2.name, 'Python')
+
+
+class SharedNotesTestCase(TestCase):
+    def setUp(self):
+        """Set up test users and friendship"""
+        from .models import CustomUser, Friendship
+        self.user1 = CustomUser.objects.create_user(username='user1', password='pass1')
+        self.user2 = CustomUser.objects.create_user(username='user2', password='pass2')
+        
+        # Create friendship
+        Friendship.objects.create(user1=self.user1, user2=self.user2)
+        
+        self.client.login(username='user1', password='pass1')
+        
+    def test_shared_note_with_tags(self):
+        """Test creating a shared note with tags"""
+        from .models import SharedNote, Tag
+        import json
+        
+        # Create tags data
+        tags_data = json.dumps([
+            {'name': 'Shared', 'color': '#3b82f6'},
+            {'name': 'Important', 'color': '#16a34a'}
+        ])
+        
+        response = self.client.post(f'/friends/{self.user2.id}/shared-notes/create/', {
+            'title': 'Shared Note with Tags',
+            'content': 'Content with tags',
+            'tags': tags_data
+        })
+        
+        # Should redirect after creation
+        self.assertEqual(response.status_code, 302)
+        
+        # Check that note was created with tags
+        shared_note = SharedNote.objects.get(title='Shared Note with Tags')
+        self.assertEqual(shared_note.tags.count(), 2)
+        self.assertTrue(shared_note.tags.filter(name='Shared').exists())
+        self.assertTrue(shared_note.tags.filter(name='Important').exists())
+        
+    def test_shared_note_tags_display(self):
+        """Test that tags are displayed in shared note view"""
+        from .models import SharedNote, Tag
+        
+        # Create a shared note with tags
+        user1, user2 = sorted([self.user1, self.user2], key=lambda u: u.id)
+        shared_note = SharedNote.objects.create(
+            user1=user1,
+            user2=user2,
+            title='Test Shared Note',
+            content='Test content',
+            created_by=self.user1
+        )
+        
+        tag = Tag.objects.create(user=self.user1, name='TestTag', color='#3b82f6')
+        shared_note.tags.add(tag)
+        
+        response = self.client.get(f'/shared-notes/{shared_note.id}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'TestTag')
+        self.assertContains(response, tag.color)
+        
+    def test_shared_note_encryption(self):
+        """Test that shared notes can be encrypted"""
+        from .models import SharedNote
+        
+        # Note: We can't easily test client-side encryption in Django tests
+        # but we can test that the model fields are properly set
+        user1, user2 = sorted([self.user1, self.user2], key=lambda u: u.id)
+        shared_note = SharedNote.objects.create(
+            user1=user1,
+            user2=user2,
+            title='Encrypted Note',
+            content='encrypted_content_here',
+            is_locked=True,
+            salt='abc123',
+            created_by=self.user1
+        )
+        
+        self.assertTrue(shared_note.is_locked)
+        self.assertEqual(shared_note.salt, 'abc123')
+        
+    def test_shared_note_edit_preserves_tags(self):
+        """Test that editing a shared note preserves tags"""
+        from .models import SharedNote, Tag
+        import json
+        
+        # Create a shared note with tags
+        user1, user2 = sorted([self.user1, self.user2], key=lambda u: u.id)
+        shared_note = SharedNote.objects.create(
+            user1=user1,
+            user2=user2,
+            title='Test Note',
+            content='Test content',
+            created_by=self.user1
+        )
+        
+        tag = Tag.objects.create(user=self.user1, name='Original', color='#3b82f6')
+        shared_note.tags.add(tag)
+        
+        # Edit the note and add another tag
+        tags_data = json.dumps([
+            {'name': 'Original', 'color': '#3b82f6'},
+            {'name': 'Updated', 'color': '#16a34a'}
+        ])
+        
+        response = self.client.post(f'/shared-notes/{shared_note.id}/edit/', {
+            'title': 'Updated Note',
+            'content': 'Updated content',
+            'tags': tags_data
+        })
+        
+        self.assertEqual(response.status_code, 302)
+        
+        # Check that note has both tags
+        shared_note.refresh_from_db()
+        self.assertEqual(shared_note.tags.count(), 2)
+        self.assertTrue(shared_note.tags.filter(name='Original').exists())
+        self.assertTrue(shared_note.tags.filter(name='Updated').exists())

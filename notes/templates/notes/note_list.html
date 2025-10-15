@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load markdown_extras %}
+{% load static %}
 
 {% block title %}My Notes - Personal Notebook{% endblock %}
 
@@ -115,7 +116,7 @@
     .note-preview {
         color: var(--text-secondary);
         margin-bottom: 12px;
-        line-height: 1.5;
+        line-height: 1.6;
         font-size: 14px;
         flex: 1;
         overflow: hidden;
@@ -127,6 +128,53 @@
         overflow-wrap: break-word;
         width: 100%;
         max-width: 100%;
+    }
+    
+    /* Markdown content styling in preview */
+    .note-preview p {
+        margin: 0 0 8px 0;
+    }
+    
+    .note-preview p:last-child {
+        margin-bottom: 0;
+    }
+    
+    .note-preview ul,
+    .note-preview ol {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .note-preview li {
+        margin: 2px 0;
+    }
+    
+    .note-preview .task-list-item {
+        list-style: none;
+        padding-left: 0;
+        margin-left: -20px;
+    }
+    
+    .note-preview .custom-checkbox {
+        margin-right: 6px;
+        font-size: 16px;
+    }
+    
+    .note-preview strong {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .note-preview em {
+        font-style: italic;
+    }
+    
+    .note-preview code {
+        background: var(--bg-tertiary);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
     }
     
     .note-meta {
@@ -318,7 +366,7 @@
                     {% if note.is_locked %}
                         <p class="locked-message">🔐 Encrypted note - click to unlock</p>
                     {% else %}
-                        <div class="note-preview">{{ note.content|markdown_preview:30 }}</div>
+                        <div class="note-preview" data-markdown="{{ note.content|escapejs }}" data-preview="true"></div>
                     {% endif %}
                     {% if note.tags.all %}
                         <div class="note-tags" onclick="event.stopPropagation()">
@@ -460,4 +508,9 @@
         }
     });
 </script>
+
+<!-- Load marked.js for client-side markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
+<script src="{% static 'js/note-preview-renderer.js' %}"></script>
 {% endblock %}
