@@ -776,7 +776,7 @@ console.log('Script starting to load...');
 const noteData = {
     id: {{ note.pk }},
     title: "{{ note.title|escapejs }}",
-    content: "{{ note.content }}",
+    content: "{{ note.content|escapejs }}",
     isLocked: {{ note.is_locked|yesno:"true,false" }},
     salt: "{{ note.salt|default:"" }}",
     createdAt: "{{ note.created_at.isoformat|escapejs }}",
