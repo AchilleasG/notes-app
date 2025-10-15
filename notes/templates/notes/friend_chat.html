@@ -137,8 +137,8 @@
     </div>
     
     <div class="chat-messages" id="chatMessages">
-        {% if messages %}
-            {% for message in messages %}
+        {% if chat_messages %}
+            {% for message in chat_messages %}
             <div class="message {% if message.from_user == user %}sent{% else %}received{% endif %}">
                 <div class="message-bubble">
                     {{ message.message }}
