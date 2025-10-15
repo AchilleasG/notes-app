@@ -319,7 +319,6 @@
         border-radius: 12px;
         font-size: 12px;
         font-weight: 500;
-        color: white;
         cursor: pointer;
         transition: opacity 0.2s;
     }
@@ -372,7 +371,7 @@
                         <div class="note-tags" onclick="event.stopPropagation()">
                             {% for tag in note.tags.all %}
                                 <span class="note-tag" 
-                                      style="background-color: {{ tag.color }}"
+                                      style="background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }}"
                                       onclick="filterByTag('{{ tag.name|escapejs }}')">
                                     {{ tag.name }}
                                 </span>

@@ -126,7 +126,7 @@
         {% if shared_note.tags.all %}
         <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
             {% for tag in shared_note.tags.all %}
-            <span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 500; color: white; background-color: {{ tag.color }};">
+            <span style="display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 13px; font-weight: 500; background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }};">
                 {{ tag.name }}
             </span>
             {% endfor %}

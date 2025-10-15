@@ -168,7 +168,6 @@
         border-radius: 12px;
         font-size: 12px;
         font-weight: 500;
-        color: white;
     }
     
     .note-actions {
@@ -251,7 +250,7 @@
                         {% if note.tags.all %}
                         <div class="note-tags">
                             {% for tag in note.tags.all %}
-                            <span class="note-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                            <span class="note-tag" style="background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }};">{{ tag.name }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}

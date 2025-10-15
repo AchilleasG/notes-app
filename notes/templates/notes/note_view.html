@@ -121,9 +121,9 @@
         border-radius: 16px;
         font-size: 13px;
         font-weight: 500;
-        color: white;
         cursor: pointer;
         transition: opacity 0.2s;
+        text-decoration: none;
     }
     
     .note-tag:hover {
@@ -512,7 +512,7 @@
                     {% for tag in note.tags.all %}
                         <a href="{% url 'note_list' %}?tags={{ tag.name|urlencode }}" 
                            class="note-tag" 
-                           style="background-color: {{ tag.color }}">
+                           style="background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }}">
                             {{ tag.name }}
                         </a>
                     {% endfor %}

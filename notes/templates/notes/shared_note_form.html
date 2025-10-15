@@ -252,7 +252,9 @@
         border-radius: 16px;
         font-size: 13px;
         font-weight: 500;
-        color: white;
+        cursor: default;
+        transition: all 0.2s ease;
+    }
         cursor: default;
         transition: all 0.2s ease;
     }
@@ -988,12 +990,53 @@
         renderTags();
         {% endif %}
         
+        // Function to calculate appropriate text color based on background color
+        function getTextColorForBackground(backgroundColor) {
+            if (!backgroundColor) return '#000000';
+            
+            // Remove the # if present
+            let color = backgroundColor.replace('#', '');
+            
+            // Handle 3-character hex colors by expanding them
+            if (color.length === 3) {
+                color = color.split('').map(c => c + c).join('');
+            }
+            
+            if (color.length !== 6) return '#000000';
+            
+            try {
+                // Convert hex to RGB
+                const r = parseInt(color.substring(0, 2), 16);
+                const g = parseInt(color.substring(2, 4), 16);
+                const b = parseInt(color.substring(4, 6), 16);
+                
+                // Calculate relative luminance using ITU-R BT.709 formula
+                function toLinear(c) {
+                    c = c / 255.0;
+                    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+                }
+                
+                const rLinear = toLinear(r);
+                const gLinear = toLinear(g);
+                const bLinear = toLinear(b);
+                
+                // Calculate luminance
+                const luminance = 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+                
+                // If luminance is greater than 0.5, use black text, otherwise white
+                return luminance > 0.5 ? '#000000' : '#ffffff';
+            } catch (e) {
+                return '#000000';
+            }
+        }
+        
         function renderTags() {
             tagsContainer.innerHTML = '';
             tags.forEach((tag, index) => {
                 const badge = document.createElement('span');
                 badge.className = 'tag-badge';
                 badge.style.backgroundColor = tag.color;
+                badge.style.color = getTextColorForBackground(tag.color);
                 badge.innerHTML = `
                     ${tag.name}
                     <span class="tag-remove" onclick="removeTag(${index})">×</span>
