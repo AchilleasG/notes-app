@@ -133,7 +133,11 @@ def note_edit(request, pk):
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
 
-        if title and final_content:
+        # Check if this is an AJAX request for checkbox update
+        is_ajax_update = request.POST.get("ajax_update") == "true"
+
+        # For AJAX updates, only require content; for normal edits, require both title and content
+        if (is_ajax_update and final_content) or (title and final_content):
             # Handle image upload
             if image:
                 import os
@@ -149,23 +153,29 @@ def note_edit(request, pk):
                     for chunk in image.chunks():
                         destination.write(chunk)
 
-            # Save current version to history before updating
-            NoteVersion.objects.create(
-                note=note,
-                title=note.title,
-                content=note.content,
-                is_locked=note.is_locked,
-                salt=note.salt,
-            )
+            # Save current version to history before updating (only for non-AJAX updates)
+            if not is_ajax_update:
+                NoteVersion.objects.create(
+                    note=note,
+                    title=note.title,
+                    content=note.content,
+                    is_locked=note.is_locked,
+                    salt=note.salt,
+                )
 
             # Update note
-            note.title = title
+            if not is_ajax_update and title:
+                note.title = title
             note.content = final_content
             note.is_locked = is_locked
             note.salt = salt
             note.save()
 
-            # Process tags
+            # Check if this is an AJAX request for checkbox update
+            if is_ajax_update:
+                return JsonResponse({"success": True})
+
+            # Process tags (only for non-AJAX updates)
             note.tags.clear()  # Remove existing tags
             if tags_data:
                 import json
@@ -192,10 +202,6 @@ def note_edit(request, pk):
                             note.tags.add(tag)
                 except (json.JSONDecodeError, ValueError):
                     pass
-
-            # Check if this is an AJAX request for checkbox update
-            if request.POST.get("ajax_update") == "true":
-                return JsonResponse({"success": True})
 
             messages.success(request, "Note updated successfully!")
             return redirect("note_view", pk=pk)
@@ -627,10 +633,14 @@ def shared_note_create(request, friend_id):
         Q(user=request.user) | Q(user=friend),
         shared_notes__in=SharedNote.objects.filter(
             Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
-        )
+        ),
     ).distinct()
-    
-    return render(request, "notes/shared_note_form.html", {"friend": friend, "user_tags": user_tags})
+
+    return render(
+        request,
+        "notes/shared_note_form.html",
+        {"friend": friend, "user_tags": user_tags},
+    )
 
 
 @login_required
@@ -682,14 +692,23 @@ def shared_note_edit(request, note_id):
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
 
-        if title and final_content:
-            shared_note.title = title
+        # Check if this is an AJAX request for checkbox update
+        is_ajax_update = request.POST.get("ajax_update") == "true"
+
+        # For AJAX updates, only require content; for normal edits, require both title and content
+        if (is_ajax_update and final_content) or (title and final_content):
+            if not is_ajax_update and title:
+                shared_note.title = title
             shared_note.content = final_content
             shared_note.is_locked = is_locked
             shared_note.salt = salt
             shared_note.save()
 
-            # Process tags
+            # Check if this is an AJAX request for checkbox update
+            if is_ajax_update:
+                return JsonResponse({"success": True})
+
+            # Process tags (only for non-AJAX updates)
             shared_note.tags.clear()  # Remove existing tags
             if tags_data:
                 import json
@@ -726,9 +745,9 @@ def shared_note_edit(request, note_id):
         Q(user=request.user) | Q(user=friend),
         shared_notes__in=SharedNote.objects.filter(
             Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
-        )
+        ),
     ).distinct()
-    
+
     return render(
         request,
         "notes/shared_note_form.html",

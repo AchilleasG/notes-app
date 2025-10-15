@@ -902,7 +902,7 @@
     (async function() {
         const noteData = {
             id: {{ note.pk }},
-            content: '{{ note.content }}',
+            content: '{{ note.content|escapejs }}',
             salt: '{{ note.salt }}',
             is_locked: {{ note.is_locked|lower }}
         };
