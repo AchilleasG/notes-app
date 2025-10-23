@@ -647,6 +647,13 @@ def shared_notes_list(request, friend_id):
     shared_folders = SharedFolder.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
+    
+    # Serialize folders for JavaScript
+    import json
+    shared_folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in shared_folders
+    ])
 
     return render(
         request,
@@ -655,6 +662,7 @@ def shared_notes_list(request, friend_id):
             "friend": friend,
             "shared_notes": shared_notes,
             "shared_folders": shared_folders,
+            "shared_folders_json": shared_folders_json,
             "current_folder": current_folder,
         },
     )
