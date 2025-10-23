@@ -13,6 +13,8 @@ from .models import (
     FriendRequest,
     SharedNote,
     ChatMessage,
+    Folder,
+    SharedFolder,
 )
 from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 
@@ -20,6 +22,18 @@ from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 @login_required
 def note_list(request):
     notes = Note.objects.filter(user=request.user)
+
+    # Filter by folder if specified
+    folder_id = request.GET.get("folder")
+    current_folder = None
+    if folder_id:
+        try:
+            current_folder = Folder.objects.get(id=folder_id, user=request.user)
+            notes = notes.filter(folder=current_folder)
+        except Folder.DoesNotExist:
+            pass
+    elif folder_id == "":  # Empty string means root (no folder)
+        notes = notes.filter(folder__isnull=True)
 
     # Filter by tags if specified
     tag_filter = request.GET.get("tags", "").strip()
@@ -33,10 +47,19 @@ def note_list(request):
     # Get all tags for the current user
     user_tags = Tag.objects.filter(user=request.user)
 
+    # Get all folders for the sidebar
+    folders = Folder.objects.filter(user=request.user)
+
     return render(
         request,
         "notes/note_list.html",
-        {"notes": notes, "user_tags": user_tags, "selected_tags": tag_filter},
+        {
+            "notes": notes,
+            "user_tags": user_tags,
+            "selected_tags": tag_filter,
+            "folders": folders,
+            "current_folder": current_folder,
+        },
     )
 
 
@@ -50,6 +73,7 @@ def note_create(request):
         salt = request.POST.get("salt", "")
         image = request.FILES.get("image")
         tags_data = request.POST.get("tags", "")
+        folder_id = request.POST.get("folder")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -62,6 +86,14 @@ def note_create(request):
                 is_locked=is_locked,
                 salt=salt,
             )
+
+            # Assign folder if specified
+            if folder_id:
+                try:
+                    folder = Folder.objects.get(id=folder_id, user=request.user)
+                    note.folder = folder
+                except Folder.DoesNotExist:
+                    pass
 
             # Handle image upload
             if image:
@@ -114,7 +146,26 @@ def note_create(request):
 
     # Get all user tags for autocomplete
     user_tags = Tag.objects.filter(user=request.user)
-    return render(request, "notes/note_form.html", {"user_tags": user_tags})
+    # Get all folders for the folder selector
+    folders = Folder.objects.filter(user=request.user)
+    # Get current folder from query param if provided
+    current_folder_id = request.GET.get("folder")
+    current_folder = None
+    if current_folder_id:
+        try:
+            current_folder = Folder.objects.get(id=current_folder_id, user=request.user)
+        except Folder.DoesNotExist:
+            pass
+    
+    return render(
+        request,
+        "notes/note_form.html",
+        {
+            "user_tags": user_tags,
+            "folders": folders,
+            "current_folder": current_folder,
+        },
+    )
 
 
 @login_required
@@ -129,6 +180,7 @@ def note_edit(request, pk):
         salt = request.POST.get("salt", note.salt)
         image = request.FILES.get("image")
         tags_data = request.POST.get("tags", "")
+        folder_id = request.POST.get("folder")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -169,6 +221,18 @@ def note_edit(request, pk):
             note.content = final_content
             note.is_locked = is_locked
             note.salt = salt
+            
+            # Update folder if specified (only for non-AJAX updates)
+            if not is_ajax_update:
+                if folder_id:
+                    try:
+                        folder = Folder.objects.get(id=folder_id, user=request.user)
+                        note.folder = folder
+                    except Folder.DoesNotExist:
+                        note.folder = None
+                elif folder_id == "":  # Empty string means remove folder
+                    note.folder = None
+            
             note.save()
 
             # Check if this is an AJAX request for checkbox update
@@ -210,8 +274,15 @@ def note_edit(request, pk):
 
     # Return note data for editing (client will handle decryption if needed)
     user_tags = Tag.objects.filter(user=request.user)
+    folders = Folder.objects.filter(user=request.user)
     return render(
-        request, "notes/note_form.html", {"note": note, "user_tags": user_tags}
+        request,
+        "notes/note_form.html",
+        {
+            "note": note,
+            "user_tags": user_tags,
+            "folders": folders,
+        },
     )
 
 
@@ -549,12 +620,34 @@ def shared_notes_list(request, friend_id):
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
 
+    # Filter by folder if specified
+    folder_id = request.GET.get("folder")
+    current_folder = None
+    if folder_id:
+        try:
+            current_folder = SharedFolder.objects.get(id=folder_id)
+            if not current_folder.has_access(request.user):
+                messages.error(request, "Access denied to folder")
+                return redirect("shared_notes_list", friend_id=friend_id)
+            shared_notes = shared_notes.filter(folder=current_folder)
+        except SharedFolder.DoesNotExist:
+            pass
+    elif folder_id == "":  # Empty string means root (no folder)
+        shared_notes = shared_notes.filter(folder__isnull=True)
+
+    # Get all shared folders for this friendship
+    shared_folders = SharedFolder.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    )
+
     return render(
         request,
         "notes/shared_notes_list.html",
         {
             "friend": friend,
             "shared_notes": shared_notes,
+            "shared_folders": shared_folders,
+            "current_folder": current_folder,
         },
     )
 
@@ -576,6 +669,7 @@ def shared_note_create(request, friend_id):
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", "")
         tags_data = request.POST.get("tags", "")
+        folder_id = request.POST.get("folder")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -593,6 +687,16 @@ def shared_note_create(request, friend_id):
                 salt=salt,
                 created_by=request.user,
             )
+
+            # Assign folder if specified
+            if folder_id:
+                try:
+                    folder = SharedFolder.objects.get(id=folder_id)
+                    if folder.has_access(request.user):
+                        shared_note.folder = folder
+                except SharedFolder.DoesNotExist:
+                    pass
+
             shared_note.save()
 
             # Process tags
@@ -636,10 +740,31 @@ def shared_note_create(request, friend_id):
         ),
     ).distinct()
 
+    # Get shared folders for this friendship
+    shared_folders = SharedFolder.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    )
+
+    # Get current folder from query param if provided
+    current_folder_id = request.GET.get("folder")
+    current_folder = None
+    if current_folder_id:
+        try:
+            current_folder = SharedFolder.objects.get(id=current_folder_id)
+            if not current_folder.has_access(request.user):
+                current_folder = None
+        except SharedFolder.DoesNotExist:
+            pass
+
     return render(
         request,
         "notes/shared_note_form.html",
-        {"friend": friend, "user_tags": user_tags},
+        {
+            "friend": friend,
+            "user_tags": user_tags,
+            "shared_folders": shared_folders,
+            "current_folder": current_folder,
+        },
     )
 
 
@@ -688,6 +813,7 @@ def shared_note_edit(request, note_id):
         is_locked = request.POST.get("is_locked") == "on"
         salt = request.POST.get("salt", shared_note.salt)
         tags_data = request.POST.get("tags", "")
+        folder_id = request.POST.get("folder")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
@@ -702,6 +828,19 @@ def shared_note_edit(request, note_id):
             shared_note.content = final_content
             shared_note.is_locked = is_locked
             shared_note.salt = salt
+
+            # Update folder if specified (only for non-AJAX updates)
+            if not is_ajax_update:
+                if folder_id:
+                    try:
+                        folder = SharedFolder.objects.get(id=folder_id)
+                        if folder.has_access(request.user):
+                            shared_note.folder = folder
+                    except SharedFolder.DoesNotExist:
+                        shared_note.folder = None
+                elif folder_id == "":  # Empty string means remove folder
+                    shared_note.folder = None
+
             shared_note.save()
 
             # Check if this is an AJAX request for checkbox update
@@ -748,10 +887,20 @@ def shared_note_edit(request, note_id):
         ),
     ).distinct()
 
+    # Get shared folders for this friendship
+    shared_folders = SharedFolder.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
+    )
+
     return render(
         request,
         "notes/shared_note_form.html",
-        {"shared_note": shared_note, "user_tags": user_tags, "friend": friend},
+        {
+            "shared_note": shared_note,
+            "user_tags": user_tags,
+            "friend": friend,
+            "shared_folders": shared_folders,
+        },
     )
 
 
@@ -783,3 +932,241 @@ def shared_note_delete(request, note_id):
             "friend": friend,
         },
     )
+
+
+# Folder management views
+
+
+@login_required
+def folder_create(request):
+    """Create a new folder"""
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        parent_id = request.POST.get("parent")
+
+        if not name:
+            return JsonResponse({"success": False, "error": "Folder name is required"})
+
+        parent = None
+        if parent_id:
+            try:
+                parent = Folder.objects.get(id=parent_id, user=request.user)
+            except Folder.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Parent folder not found"})
+
+        # Check if folder with same name already exists in parent
+        if Folder.objects.filter(user=request.user, name=name, parent=parent).exists():
+            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+
+        folder = Folder.objects.create(user=request.user, name=name, parent=parent)
+        return JsonResponse({
+            "success": True,
+            "folder": {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+        })
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def folder_rename(request, folder_id):
+    """Rename a folder"""
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+
+    if request.method == "POST":
+        new_name = request.POST.get("name", "").strip()
+
+        if not new_name:
+            return JsonResponse({"success": False, "error": "Folder name is required"})
+
+        # Check if folder with same name already exists in parent
+        if Folder.objects.filter(
+            user=request.user, name=new_name, parent=folder.parent
+        ).exclude(id=folder.id).exists():
+            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+
+        folder.name = new_name
+        folder.save()
+        return JsonResponse({"success": True, "folder": {"id": folder.id, "name": folder.name}})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def folder_delete(request, folder_id):
+    """Delete a folder (notes inside will be moved to parent or root)"""
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+
+    if request.method == "POST":
+        # Move all notes to parent folder (or None if root folder)
+        Note.objects.filter(folder=folder).update(folder=folder.parent)
+        
+        # Move all subfolders to parent folder (or None if root folder)
+        Folder.objects.filter(parent=folder).update(parent=folder.parent)
+        
+        folder.delete()
+        messages.success(request, f"Folder '{folder.name}' deleted successfully!")
+        return redirect("note_list")
+
+    return render(request, "notes/folder_confirm_delete.html", {"folder": folder})
+
+
+@login_required
+def note_move(request, note_id):
+    """Move a note to a different folder"""
+    note = get_object_or_404(Note, id=note_id, user=request.user)
+
+    if request.method == "POST":
+        folder_id = request.POST.get("folder")
+
+        if folder_id:
+            try:
+                folder = Folder.objects.get(id=folder_id, user=request.user)
+                note.folder = folder
+            except Folder.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Folder not found"})
+        else:
+            note.folder = None
+
+        note.save()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+# Shared folder management views
+
+
+@login_required
+def shared_folder_create(request, friend_id):
+    """Create a new shared folder with a friend"""
+    friend = get_object_or_404(CustomUser, id=friend_id)
+
+    if not Friendship.are_friends(request.user, friend):
+        return JsonResponse({"success": False, "error": "You can only create shared folders with friends"})
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        parent_id = request.POST.get("parent")
+
+        if not name:
+            return JsonResponse({"success": False, "error": "Folder name is required"})
+
+        parent = None
+        if parent_id:
+            try:
+                parent = SharedFolder.objects.get(id=parent_id)
+                if not parent.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied to parent folder"})
+            except SharedFolder.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Parent folder not found"})
+
+        # Ensure consistent user ordering
+        user1, user2 = sorted([request.user, friend], key=lambda u: u.id)
+
+        # Check if folder with same name already exists in parent
+        if SharedFolder.objects.filter(
+            user1=user1, user2=user2, name=name, parent=parent
+        ).exists():
+            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+
+        folder = SharedFolder.objects.create(
+            user1=user1, user2=user2, name=name, parent=parent
+        )
+        return JsonResponse({
+            "success": True,
+            "folder": {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+        })
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def shared_folder_rename(request, folder_id):
+    """Rename a shared folder"""
+    folder = get_object_or_404(SharedFolder, id=folder_id)
+
+    if not folder.has_access(request.user):
+        return JsonResponse({"success": False, "error": "Access denied"})
+
+    if request.method == "POST":
+        new_name = request.POST.get("name", "").strip()
+
+        if not new_name:
+            return JsonResponse({"success": False, "error": "Folder name is required"})
+
+        # Check if folder with same name already exists in parent
+        if SharedFolder.objects.filter(
+            user1=folder.user1, user2=folder.user2, name=new_name, parent=folder.parent
+        ).exclude(id=folder.id).exists():
+            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+
+        folder.name = new_name
+        folder.save()
+        return JsonResponse({"success": True, "folder": {"id": folder.id, "name": folder.name}})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def shared_folder_delete(request, folder_id):
+    """Delete a shared folder"""
+    folder = get_object_or_404(SharedFolder, id=folder_id)
+
+    if not folder.has_access(request.user):
+        messages.error(request, "Access denied")
+        return redirect("friends_list")
+
+    friend = folder.user2 if folder.user1 == request.user else folder.user1
+
+    if request.method == "POST":
+        # Move all notes to parent folder (or None if root folder)
+        SharedNote.objects.filter(folder=folder).update(folder=folder.parent)
+        
+        # Move all subfolders to parent folder (or None if root folder)
+        SharedFolder.objects.filter(parent=folder).update(parent=folder.parent)
+        
+        folder.delete()
+        messages.success(request, f"Folder '{folder.name}' deleted successfully!")
+        return redirect("shared_notes_list", friend_id=friend.id)
+
+    return render(
+        request,
+        "notes/shared_folder_confirm_delete.html",
+        {"folder": folder, "friend": friend},
+    )
+
+
+@login_required
+def shared_note_move(request, note_id):
+    """Move a shared note to a different folder"""
+    shared_note = get_object_or_404(SharedNote, id=note_id)
+
+    if not shared_note.has_access(request.user):
+        return JsonResponse({"success": False, "error": "Access denied"})
+
+    if request.method == "POST":
+        folder_id = request.POST.get("folder")
+
+        if folder_id:
+            try:
+                folder = SharedFolder.objects.get(id=folder_id)
+                if not folder.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied to folder"})
+                shared_note.folder = folder
+            except SharedFolder.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Folder not found"})
+        else:
+            shared_note.folder = None
+
+        shared_note.save()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})

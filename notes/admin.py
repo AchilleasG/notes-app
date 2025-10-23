@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Note, NoteVersion, CustomUser, Tag
+from .models import Note, NoteVersion, CustomUser, Tag, Folder, SharedFolder
 
 
 @admin.register(Tag)
@@ -39,12 +39,29 @@ class CustomUserAdmin(UserAdmin):
     )
 
 
+@admin.register(Folder)
+class FolderAdmin(admin.ModelAdmin):
+    list_display = ("name", "user", "parent", "created_at")
+    list_filter = ("user", "created_at")
+    search_fields = ("name",)
+    raw_id_fields = ("parent",)
+
+
+@admin.register(SharedFolder)
+class SharedFolderAdmin(admin.ModelAdmin):
+    list_display = ("name", "user1", "user2", "parent", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("name",)
+    raw_id_fields = ("parent",)
+
+
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "created_at", "updated_at")
-    list_filter = ("user", "created_at", "tags")
+    list_display = ("title", "user", "folder", "created_at", "updated_at")
+    list_filter = ("user", "folder", "created_at", "tags")
     search_fields = ("title", "content")
     filter_horizontal = ("tags",)
+    raw_id_fields = ("folder",)
 
 
 @admin.register(NoteVersion)
