@@ -49,6 +49,13 @@ def note_list(request):
 
     # Get all folders for the sidebar
     folders = Folder.objects.filter(user=request.user)
+    
+    # Serialize folders for JavaScript
+    import json
+    folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in folders
+    ])
 
     return render(
         request,
@@ -58,6 +65,7 @@ def note_list(request):
             "user_tags": user_tags,
             "selected_tags": tag_filter,
             "folders": folders,
+            "folders_json": folders_json,
             "current_folder": current_folder,
         },
     )
