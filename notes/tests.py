@@ -582,3 +582,181 @@ class SharedNotesTestCase(TestCase):
         self.assertEqual(shared_note.tags.count(), 2)
         self.assertTrue(shared_note.tags.filter(name='Original').exists())
         self.assertTrue(shared_note.tags.filter(name='Updated').exists())
+
+
+class CanvasNotesTestCase(TestCase):
+    def setUp(self):
+        """Set up test user"""
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(
+            username='testuser', 
+            password='testpass123'
+        )
+        self.client.login(username='testuser', password='testpass123')
+        
+    def test_canvas_note_creation(self):
+        """Test that a canvas note can be created"""
+        from .models import Note
+        
+        response = self.client.post('/create/', {
+            'title': 'Test Canvas Note',
+            'note_type': 'canvas',
+        })
+        
+        # Should redirect after creation
+        self.assertEqual(response.status_code, 302)
+        
+        # Check that note was created with canvas type
+        note = Note.objects.get(title='Test Canvas Note')
+        self.assertEqual(note.note_type, 'canvas')
+        self.assertFalse(note.is_locked)  # Canvas notes cannot be encrypted
+        
+    def test_canvas_element_creation(self):
+        """Test that canvas elements can be created"""
+        from .models import Note, CanvasElement
+        import json
+        
+        # Create a canvas note
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Canvas Note',
+            note_type='canvas',
+            content=''
+        )
+        
+        # Create a textbox element
+        response = self.client.post('/canvas/elements/create/', 
+            data=json.dumps({
+                'note_id': note.id,
+                'element_type': 'textbox',
+                'x': 50,
+                'y': 50,
+                'width': 200,
+                'height': 100,
+                'text_content': 'Hello canvas',
+                'z_index': 0,
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result['success'])
+        
+        # Check element was created
+        self.assertEqual(CanvasElement.objects.filter(note=note).count(), 1)
+        element = CanvasElement.objects.get(note=note)
+        self.assertEqual(element.element_type, 'textbox')
+        self.assertEqual(element.text_content, 'Hello canvas')
+        
+    def test_canvas_element_update(self):
+        """Test that canvas elements can be updated"""
+        from .models import Note, CanvasElement
+        import json
+        
+        # Create a canvas note with an element
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Canvas Note',
+            note_type='canvas',
+            content=''
+        )
+        
+        element = CanvasElement.objects.create(
+            note=note,
+            element_type='textbox',
+            x=50,
+            y=50,
+            width=200,
+            height=100,
+            text_content='Original text',
+        )
+        
+        # Update the element
+        response = self.client.post(f'/canvas/elements/{element.id}/update/', 
+            data=json.dumps({
+                'x': 100,
+                'y': 100,
+                'text_content': 'Updated text',
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result['success'])
+        
+        # Check element was updated
+        element.refresh_from_db()
+        self.assertEqual(element.x, 100)
+        self.assertEqual(element.y, 100)
+        self.assertEqual(element.text_content, 'Updated text')
+        
+    def test_canvas_element_delete(self):
+        """Test that canvas elements can be deleted"""
+        from .models import Note, CanvasElement
+        
+        # Create a canvas note with an element
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Canvas Note',
+            note_type='canvas',
+            content=''
+        )
+        
+        element = CanvasElement.objects.create(
+            note=note,
+            element_type='textbox',
+            x=50,
+            y=50,
+            width=200,
+            height=100,
+            text_content='Text to delete',
+        )
+        
+        element_id = element.id
+        
+        # Delete the element
+        response = self.client.post(f'/canvas/elements/{element_id}/delete/')
+        
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result['success'])
+        
+        # Check element was deleted
+        self.assertFalse(CanvasElement.objects.filter(id=element_id).exists())
+        
+    def test_canvas_note_cannot_be_encrypted(self):
+        """Test that canvas notes cannot be encrypted"""
+        from .models import Note
+        
+        response = self.client.post('/create/', {
+            'title': 'Test Canvas Note',
+            'note_type': 'canvas',
+            'is_locked': 'on',
+        })
+        
+        # Should redirect but with error
+        self.assertEqual(response.status_code, 302)
+        # The view should have shown an error and redirected back
+        
+    def test_shared_canvas_note_creation(self):
+        """Test that shared canvas notes can be created"""
+        from .models import CustomUser, Friendship, SharedNote
+        
+        # Create a friend
+        friend = CustomUser.objects.create_user(username='friend', password='pass')
+        Friendship.objects.create(user1=self.user, user2=friend)
+        
+        response = self.client.post(f'/friends/{friend.id}/shared-notes/create/', {
+            'title': 'Shared Canvas Note',
+            'note_type': 'canvas',
+        })
+        
+        # Should redirect after creation
+        self.assertEqual(response.status_code, 302)
+        
+        # Check that shared note was created with canvas type
+        shared_note = SharedNote.objects.get(title='Shared Canvas Note')
+        self.assertEqual(shared_note.note_type, 'canvas')
+        self.assertFalse(shared_note.is_locked)

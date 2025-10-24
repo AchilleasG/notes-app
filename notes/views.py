@@ -1364,7 +1364,11 @@ def canvas_element_create(request):
             
             return JsonResponse({"success": True, "element": element.to_dict()})
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to create element"})
     
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1415,7 +1419,11 @@ def canvas_element_update(request, element_id):
             
             return JsonResponse({"success": True, "element": element.to_dict()})
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error updating canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to update element"})
     
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1447,7 +1455,11 @@ def canvas_element_delete(request, element_id):
             
             return JsonResponse({"success": True})
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error deleting canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to delete element"})
     
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1503,6 +1515,10 @@ def canvas_element_upload_image(request):
             
             return JsonResponse({"success": True, "element": element.to_dict()})
         except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error uploading image: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to upload image"})
     
     return JsonResponse({"success": False, "error": "Invalid request method"})
