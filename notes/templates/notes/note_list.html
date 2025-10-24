@@ -519,13 +519,13 @@
             </h3>
             <ul class="folder-list">
                 <li class="folder-item">
-                    <a href="{% url 'note_list' %}?folder=" class="folder-link {% if request.GET.folder == '' or request.GET.folder is None and not current_folder %}active{% endif %}">
+                    <a href="{% url 'note_list' %}?folder=" class="folder-link {% if not selected_tags and not current_folder and request.GET.folder != 'all' %}active{% endif %}">
                         <span class="folder-icon">🏠</span>
                         <span>Home</span>
                     </a>
                 </li>
                 <li class="folder-item">
-                    <a href="{% url 'note_list' %}?folder=all" class="folder-link {% if request.GET.folder == 'all' %}active{% endif %}">
+                    <a href="{% url 'note_list' %}?folder=all" class="folder-link {% if selected_tags or request.GET.folder == 'all' %}active{% endif %}">
                         <span class="folder-icon">📂</span>
                         <span>All Notes</span>
                     </a>
@@ -540,11 +540,23 @@
         
         <!-- Main Content -->
         <div class="main-content">
-            {% if current_folder %}
+            {% if selected_tags %}
+                <div style="margin-bottom: 16px;">
+                    <h3 style="color: var(--text-primary); margin: 0;">🏷️ Tag Search Results</h3>
+                    <p style="color: var(--text-secondary); margin: 8px 0 0 0; font-size: 14px;">
+                        Showing notes with tags: <strong>{{ selected_tags }}</strong> (from all folders)
+                    </p>
+                </div>
+            {% elif current_folder %}
                 <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
                     <h3 style="color: var(--text-primary); margin: 0;">📁 {{ current_folder.name }}</h3>
                     <button onclick="renameFolder({{ current_folder.id }}, '{{ current_folder.name|escapejs }}')" class="btn btn-secondary btn-sm">Rename</button>
                     <a href="{% url 'folder_delete' current_folder.id %}" class="btn btn-danger btn-sm">Delete</a>
+                </div>
+            {% elif request.GET.folder == 'all' %}
+                <div style="margin-bottom: 16px;">
+                    <h3 style="color: var(--text-primary); margin: 0;">📂 All Notes</h3>
+                    <p style="color: var(--text-secondary); margin: 8px 0 0 0; font-size: 14px;">All your notes from every folder</p>
                 </div>
             {% elif request.GET.folder == '' %}
                 <div style="margin-bottom: 16px;">
@@ -568,7 +580,7 @@
         </button>
     </div>
 
-    {% if subfolders %}
+    {% if subfolders and not selected_tags %}
         <div class="notes-grid">
             {% for subfolder in subfolders %}
                 <div class="folder-card" onclick="window.location='?folder={{ subfolder.id }}'">
@@ -615,6 +627,13 @@
                     {% endif %}
                     <div class="note-meta">
                         Updated {{ note.updated_at|date:"M d, Y" }}
+                        {% if selected_tags %}
+                            {% if note.folder %}
+                                • 📁 {{ note.folder.name }}
+                            {% else %}
+                                • 🏠 Home
+                            {% endif %}
+                        {% endif %}
                     </div>
                     <div class="note-actions" onclick="event.stopPropagation()">
                         <a href="{% url 'note_view' note.pk %}" class="btn btn-primary">Open</a>
@@ -629,10 +648,12 @@
         </div>
     {% elif not subfolders %}
         <div class="empty-state">
-            <div class="empty-state-icon">📝</div>
-            <h3>No notes {% if current_folder %}in this folder{% elif request.GET.folder == '' %}in Home{% else %}yet{% endif %}</h3>
-            <p>{% if current_folder %}This folder is empty. {% elif request.GET.folder == '' %}Home contains notes that aren't in any folder. {% endif %}Start creating notes to keep track of your thoughts and ideas.</p>
-            <a href="{% url 'note_create' %}{% if current_folder %}?folder={{ current_folder.id }}{% endif %}" class="btn btn-primary">Create Note</a>
+            <div class="empty-state-icon">{% if selected_tags %}🏷️{% else %}📝{% endif %}</div>
+            <h3>{% if selected_tags %}No notes found with tags: {{ selected_tags }}{% elif current_folder %}No notes in this folder{% elif request.GET.folder == '' %}No notes in Home{% else %}No notes yet{% endif %}</h3>
+            <p>{% if selected_tags %}Try searching for different tags or create a new note with these tags.{% elif current_folder %}This folder is empty. {% elif request.GET.folder == '' %}Home contains notes that aren't in any folder. {% endif %}{% if not selected_tags %}Start creating notes to keep track of your thoughts and ideas.{% endif %}</p>
+            {% if not selected_tags %}
+                <a href="{% url 'note_create' %}{% if current_folder %}?folder={{ current_folder.id }}{% endif %}" class="btn btn-primary">Create Note</a>
+            {% endif %}
         </div>
     {% endif %}
         </div>
