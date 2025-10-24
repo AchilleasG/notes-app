@@ -69,9 +69,15 @@ class Folder(models.Model):
 
 
 class Note(models.Model):
+    NOTE_TYPE_CHOICES = [
+        ('markdown', 'Markdown Note'),
+        ('canvas', 'Canvas Note'),
+    ]
+    
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
     content = models.TextField()  # This will store encrypted content from client
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPE_CHOICES, default='markdown')
     is_locked = models.BooleanField(default=False)
     salt = models.CharField(
         max_length=100, blank=True
@@ -99,6 +105,7 @@ class Note(models.Model):
             "id": self.pk,
             "title": self.title,
             "content": self.content,  # Encrypted content
+            "note_type": self.note_type,
             "is_locked": self.is_locked,
             "salt": self.salt,
             "tags": [
@@ -252,6 +259,11 @@ class SharedFolder(models.Model):
 class SharedNote(models.Model):
     """A note shared between two friends"""
 
+    NOTE_TYPE_CHOICES = [
+        ('markdown', 'Markdown Note'),
+        ('canvas', 'Canvas Note'),
+    ]
+
     user1 = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="shared_notes_1"
     )
@@ -260,6 +272,7 @@ class SharedNote(models.Model):
     )
     title = models.CharField(max_length=200)
     content = models.TextField()  # This will store encrypted content from client
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPE_CHOICES, default='markdown')
     is_locked = models.BooleanField(default=False)
     salt = models.CharField(max_length=100, blank=True)
     tags = models.ManyToManyField(Tag, related_name="shared_notes", blank=True)
@@ -291,6 +304,7 @@ class SharedNote(models.Model):
             "id": self.pk,
             "title": self.title,
             "content": self.content,  # Encrypted content
+            "note_type": self.note_type,
             "is_locked": self.is_locked,
             "salt": self.salt,
             "tags": [
@@ -326,3 +340,78 @@ class ChatMessage(models.Model):
         return (
             f"{self.from_user.username} -> {self.to_user.username}: {self.message[:50]}"
         )
+
+
+class CanvasElement(models.Model):
+    """An element (textbox or image) in a canvas note"""
+    
+    ELEMENT_TYPE_CHOICES = [
+        ('textbox', 'Text Box'),
+        ('image', 'Image'),
+    ]
+    
+    # For personal notes
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name="canvas_elements",
+        null=True,
+        blank=True
+    )
+    
+    # For shared notes
+    shared_note = models.ForeignKey(
+        SharedNote,
+        on_delete=models.CASCADE,
+        related_name="canvas_elements",
+        null=True,
+        blank=True
+    )
+    
+    element_type = models.CharField(max_length=20, choices=ELEMENT_TYPE_CHOICES)
+    
+    # Position on canvas
+    x = models.IntegerField(default=0)
+    y = models.IntegerField(default=0)
+    
+    # Size
+    width = models.IntegerField(default=200)
+    height = models.IntegerField(default=100)
+    
+    # For textbox elements
+    text_content = models.TextField(blank=True, default='')
+    
+    # For image elements
+    image = models.ImageField(upload_to='canvas_images/', blank=True, null=True)
+    
+    # Z-index for layering
+    z_index = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['z_index', 'created_at']
+    
+    def __str__(self):
+        note_title = self.note.title if self.note else (self.shared_note.title if self.shared_note else "No note")
+        return f"{self.element_type} in {note_title}"
+    
+    def to_dict(self):
+        """Serialize element to dictionary"""
+        data = {
+            'id': self.id,
+            'element_type': self.element_type,
+            'x': self.x,
+            'y': self.y,
+            'width': self.width,
+            'height': self.height,
+            'z_index': self.z_index,
+        }
+        
+        if self.element_type == 'textbox':
+            data['text_content'] = self.text_content
+        elif self.element_type == 'image' and self.image:
+            data['image_url'] = self.image.url
+            
+        return data

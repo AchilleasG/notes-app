@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Note, NoteVersion, CustomUser, Tag, Folder, SharedFolder
+from .models import Note, NoteVersion, CustomUser, Tag, Folder, SharedFolder, CanvasElement
 
 
 @admin.register(Tag)
@@ -57,8 +57,8 @@ class SharedFolderAdmin(admin.ModelAdmin):
 
 @admin.register(Note)
 class NoteAdmin(admin.ModelAdmin):
-    list_display = ("title", "user", "folder", "created_at", "updated_at")
-    list_filter = ("user", "folder", "created_at", "tags")
+    list_display = ("title", "user", "note_type", "folder", "created_at", "updated_at")
+    list_filter = ("user", "note_type", "folder", "created_at", "tags")
     search_fields = ("title", "content")
     filter_horizontal = ("tags",)
     raw_id_fields = ("folder",)
@@ -70,3 +70,11 @@ class NoteVersionAdmin(admin.ModelAdmin):
     list_filter = ("created_at", "is_locked")
     search_fields = ("title", "content")
     readonly_fields = ("note", "title", "content", "is_locked", "created_at")
+
+
+@admin.register(CanvasElement)
+class CanvasElementAdmin(admin.ModelAdmin):
+    list_display = ("id", "element_type", "note", "shared_note", "x", "y", "width", "height", "created_at")
+    list_filter = ("element_type", "created_at")
+    search_fields = ("text_content",)
+    raw_id_fields = ("note", "shared_note")

@@ -37,4 +37,10 @@ urlpatterns = [
     path("friends/<int:friend_id>/shared-folders/create/", views.shared_folder_create, name="shared_folder_create"),
     path("shared-folders/<int:folder_id>/rename/", views.shared_folder_rename, name="shared_folder_rename"),
     path("shared-folders/<int:folder_id>/delete/", views.shared_folder_delete, name="shared_folder_delete"),
+    
+    # Canvas element management URLs
+    path("canvas/elements/create/", views.canvas_element_create, name="canvas_element_create"),
+    path("canvas/elements/<int:element_id>/update/", views.canvas_element_update, name="canvas_element_update"),
+    path("canvas/elements/<int:element_id>/delete/", views.canvas_element_delete, name="canvas_element_delete"),
+    path("canvas/elements/upload-image/", views.canvas_element_upload_image, name="canvas_element_upload_image"),
 ]

@@ -99,17 +99,29 @@ def note_create(request):
         image = request.FILES.get("image")
         tags_data = request.POST.get("tags", "")
         folder_id = request.POST.get("folder")
+        note_type = request.POST.get("note_type", "markdown")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
+        
+        # Canvas notes cannot be encrypted
+        if note_type == "canvas" and is_locked:
+            messages.error(request, "Canvas notes cannot be encrypted.")
+            return redirect("note_create")
 
-        if title and final_content:
+        if title:
+            # For canvas notes, content is not required initially
+            if not final_content and note_type != "canvas":
+                messages.error(request, "Content is required.")
+                return redirect("note_create")
+            
             note = Note(
                 user=request.user,
                 title=title,
-                content=final_content,
-                is_locked=is_locked,
-                salt=salt,
+                content=final_content or "",
+                note_type=note_type,
+                is_locked=is_locked if note_type != "canvas" else False,
+                salt=salt if note_type != "canvas" else "",
             )
 
             # Assign folder if specified
@@ -120,7 +132,7 @@ def note_create(request):
                 except Folder.DoesNotExist:
                     pass
 
-            # Handle image upload
+            # Handle image upload (legacy)
             if image:
                 import os
                 from django.conf import settings
@@ -137,8 +149,8 @@ def note_create(request):
 
             note.save()
 
-            # Process tags
-            if tags_data:
+            # Process tags (only for markdown notes)
+            if note_type == "markdown" and tags_data:
                 import json
 
                 try:
@@ -165,9 +177,9 @@ def note_create(request):
                     pass
 
             messages.success(request, "Note created successfully!")
-            return redirect("note_list")
+            return redirect("note_view", pk=note.pk)
         else:
-            messages.error(request, "Title and content are required.")
+            messages.error(request, "Title is required.")
 
     # Get all user tags for autocomplete
     user_tags = Tag.objects.filter(user=request.user)
@@ -738,11 +750,22 @@ def shared_note_create(request, friend_id):
         salt = request.POST.get("salt", "")
         tags_data = request.POST.get("tags", "")
         folder_id = request.POST.get("folder")
+        note_type = request.POST.get("note_type", "markdown")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
+        
+        # Canvas notes cannot be encrypted
+        if note_type == "canvas" and is_locked:
+            messages.error(request, "Canvas notes cannot be encrypted.")
+            return redirect("shared_note_create", friend_id=friend_id)
 
-        if title and final_content:
+        if title:
+            # For canvas notes, content is not required initially
+            if not final_content and note_type != "canvas":
+                messages.error(request, "Content is required.")
+                return redirect("shared_note_create", friend_id=friend_id)
+            
             # Ensure consistent user ordering
             user1, user2 = sorted([request.user, friend], key=lambda u: u.id)
 
@@ -750,9 +773,10 @@ def shared_note_create(request, friend_id):
                 user1=user1,
                 user2=user2,
                 title=title,
-                content=final_content,
-                is_locked=is_locked,
-                salt=salt,
+                content=final_content or "",
+                note_type=note_type,
+                is_locked=is_locked if note_type != "canvas" else False,
+                salt=salt if note_type != "canvas" else "",
                 created_by=request.user,
             )
 
@@ -767,8 +791,8 @@ def shared_note_create(request, friend_id):
 
             shared_note.save()
 
-            # Process tags
-            if tags_data:
+            # Process tags (only for markdown notes)
+            if note_type == "markdown" and tags_data:
                 import json
 
                 try:
@@ -796,9 +820,9 @@ def shared_note_create(request, friend_id):
                     pass
 
             messages.success(request, "Shared note created successfully!")
-            return redirect("shared_notes_list", friend_id=friend_id)
+            return redirect("shared_note_view", note_id=shared_note.id)
         else:
-            messages.error(request, "Title and content are required.")
+            messages.error(request, "Title is required.")
 
     # Get tags that are used in shared notes with this friend
     user_tags = Tag.objects.filter(
@@ -1253,4 +1277,209 @@ def shared_note_move(request, note_id):
         shared_note.save()
         return JsonResponse({"success": True})
 
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+# Canvas element management views
+
+
+@login_required
+def canvas_element_create(request):
+    """Create a new canvas element"""
+    if request.method == "POST":
+        import json
+        from .models import CanvasElement
+        
+        try:
+            data = json.loads(request.body)
+            
+            element_type = data.get("element_type")
+            note_id = data.get("note_id")
+            shared_note_id = data.get("shared_note_id")
+            
+            # Validate element type
+            if element_type not in ["textbox", "image"]:
+                return JsonResponse({"success": False, "error": "Invalid element type"})
+            
+            # Create the element
+            element = CanvasElement(
+                element_type=element_type,
+                x=data.get("x", 0),
+                y=data.get("y", 0),
+                width=data.get("width", 200),
+                height=data.get("height", 100),
+                z_index=data.get("z_index", 0),
+            )
+            
+            # For textbox elements
+            if element_type == "textbox":
+                element.text_content = data.get("text_content", "")
+            
+            # Associate with note or shared note
+            if note_id:
+                try:
+                    note = Note.objects.get(id=note_id, user=request.user)
+                    if note.note_type != 'canvas':
+                        return JsonResponse({"success": False, "error": "Note is not a canvas note"})
+                    element.note = note
+                except Note.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Note not found"})
+            elif shared_note_id:
+                try:
+                    shared_note = SharedNote.objects.get(id=shared_note_id)
+                    if not shared_note.has_access(request.user):
+                        return JsonResponse({"success": False, "error": "Access denied"})
+                    if shared_note.note_type != 'canvas':
+                        return JsonResponse({"success": False, "error": "Shared note is not a canvas note"})
+                    element.shared_note = shared_note
+                except SharedNote.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Shared note not found"})
+            else:
+                return JsonResponse({"success": False, "error": "Note or shared note ID required"})
+            
+            element.save()
+            
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_update(request, element_id):
+    """Update a canvas element"""
+    if request.method == "POST":
+        import json
+        from .models import CanvasElement
+        
+        try:
+            element = get_object_or_404(CanvasElement, id=element_id)
+            
+            # Verify access
+            if element.note:
+                if element.note.user != request.user:
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            elif element.shared_note:
+                if not element.shared_note.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            
+            data = json.loads(request.body)
+            
+            # Update position and size
+            if "x" in data:
+                element.x = data["x"]
+            if "y" in data:
+                element.y = data["y"]
+            if "width" in data:
+                element.width = data["width"]
+            if "height" in data:
+                element.height = data["height"]
+            if "z_index" in data:
+                element.z_index = data["z_index"]
+            
+            # Update content for textbox
+            if element.element_type == "textbox" and "text_content" in data:
+                element.text_content = data["text_content"]
+            
+            element.save()
+            
+            # Update the parent note's updated_at timestamp
+            if element.note:
+                element.note.save()
+            elif element.shared_note:
+                element.shared_note.save()
+            
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_delete(request, element_id):
+    """Delete a canvas element"""
+    if request.method == "POST":
+        from .models import CanvasElement
+        
+        try:
+            element = get_object_or_404(CanvasElement, id=element_id)
+            
+            # Verify access
+            if element.note:
+                if element.note.user != request.user:
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            elif element.shared_note:
+                if not element.shared_note.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            
+            # Update the parent note's updated_at timestamp before deleting element
+            if element.note:
+                element.note.save()
+            elif element.shared_note:
+                element.shared_note.save()
+            
+            element.delete()
+            
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_upload_image(request):
+    """Upload an image for a canvas element"""
+    if request.method == "POST":
+        from .models import CanvasElement
+        
+        try:
+            note_id = request.POST.get("note_id")
+            shared_note_id = request.POST.get("shared_note_id")
+            image_file = request.FILES.get("image")
+            
+            if not image_file:
+                return JsonResponse({"success": False, "error": "No image file provided"})
+            
+            # Create the image element
+            element = CanvasElement(
+                element_type="image",
+                x=int(request.POST.get("x", 0)),
+                y=int(request.POST.get("y", 0)),
+                width=int(request.POST.get("width", 200)),
+                height=int(request.POST.get("height", 200)),
+                z_index=int(request.POST.get("z_index", 0)),
+                image=image_file
+            )
+            
+            # Associate with note or shared note
+            if note_id:
+                try:
+                    note = Note.objects.get(id=note_id, user=request.user)
+                    if note.note_type != 'canvas':
+                        return JsonResponse({"success": False, "error": "Note is not a canvas note"})
+                    element.note = note
+                except Note.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Note not found"})
+            elif shared_note_id:
+                try:
+                    shared_note = SharedNote.objects.get(id=shared_note_id)
+                    if not shared_note.has_access(request.user):
+                        return JsonResponse({"success": False, "error": "Access denied"})
+                    if shared_note.note_type != 'canvas':
+                        return JsonResponse({"success": False, "error": "Shared note is not a canvas note"})
+                    element.shared_note = shared_note
+                except SharedNote.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Shared note not found"})
+            else:
+                return JsonResponse({"success": False, "error": "Note or shared note ID required"})
+            
+            element.save()
+            
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    
     return JsonResponse({"success": False, "error": "Invalid request method"})
