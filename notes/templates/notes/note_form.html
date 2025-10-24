@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if note %}Edit Note{% else %}Create Note{% endif %} - Personal Notebook{% endblock %}
 
@@ -403,14 +404,13 @@
         
         <div class="form-group">
             <label for="folder">Folder</label>
-            <select id="folder" name="folder" style="width: 100%; padding: 12px 16px; border: 1px solid var(--border-primary); border-radius: 8px; font-size: 16px; background: var(--bg-secondary); color: var(--text-primary);">
-                <option value="">Root (No Folder)</option>
-                {% for folder in folders %}
-                    <option value="{{ folder.id }}" {% if note and note.folder.id == folder.id or current_folder and current_folder.id == folder.id %}selected{% endif %}>
-                        {{ folder.get_full_path }}
-                    </option>
-                {% endfor %}
-            </select>
+            <div id="folder-selector-container" style="border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-secondary); min-height: 50px; cursor: pointer; position: relative;">
+                <div id="folder-selector-display" style="padding: 12px 16px; font-size: 16px; color: var(--text-primary);">
+                    🏠 Home (No Folder)
+                </div>
+                <div id="folder-selector-arrow" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-secondary);">▼</div>
+            </div>
+            <input type="hidden" id="folder" name="folder" value="">
         </div>
         
         <div class="form-group">
@@ -462,18 +462,74 @@
 </div>
 
 <script>
-    // Toggle markdown guide
-    function toggleGuide() {
-        const guide = document.getElementById('markdownGuide');
-        const btn = document.querySelector('.toggle-guide');
-        if (guide.style.display === 'none') {
-            guide.style.display = 'block';
-            btn.innerHTML = '<span id="guideIcon">📖</span> Hide Guide';
-        } else {
-            guide.style.display = 'none';
-            btn.innerHTML = '<span id="guideIcon">📖</span> Markdown Guide';
+    // Folder selector functionality
+    (function() {
+        const folders = {{ folders_json|default:"[]"|safe }};
+        let selectedFolderId = {% if note and note.folder %}{{ note.folder.id }}{% elif current_folder %}{{ current_folder.id }}{% else %}null{% endif %};
+        
+        // Server-side folder data for fallback
+        {% if note and note.folder %}
+        const serverFolderName = "{{ note.folder.name|escapejs }}";
+        {% elif current_folder %}
+        const serverFolderName = "{{ current_folder.name|escapejs }}";
+        {% else %}
+        const serverFolderName = null;
+        {% endif %}
+        
+        console.log('Folders data:', folders);
+        console.log('Initial selectedFolderId:', selectedFolderId);
+        console.log('Server folder name:', serverFolderName);
+        
+        const container = document.getElementById('folder-selector-container');
+        const display = document.getElementById('folder-selector-display');
+        const hiddenInput = document.getElementById('folder');
+        
+        function updateDisplay() {
+            if (selectedFolderId) {
+                const folder = folders.find(f => f.id === selectedFolderId);
+                console.log('Found folder for ID', selectedFolderId, ':', folder);
+                if (folder) {
+                    display.innerHTML = `📁 ${folder.name}`;
+                    hiddenInput.value = selectedFolderId;
+                } else if (serverFolderName) {
+                    // Use server-side folder name as fallback
+                    display.innerHTML = `📁 ${serverFolderName}`;
+                    hiddenInput.value = selectedFolderId;
+                } else {
+                    display.innerHTML = '🏠 Home (No Folder)';
+                    hiddenInput.value = '';
+                }
+            } else {
+                display.innerHTML = '🏠 Home (No Folder)';
+                hiddenInput.value = '';
+            }
         }
-    }
+        
+        container.addEventListener('click', function() {
+            console.log('Container clicked, opening folder dialog');
+            if (typeof createFolderTreeDialog === 'function') {
+                createFolderTreeDialog(
+                    'Select Folder',
+                    folders,
+                    selectedFolderId,
+                    function(newFolderId) {
+                        console.log('Folder selected:', newFolderId);
+                        selectedFolderId = newFolderId;
+                        updateDisplay();
+                    }
+                );
+            } else {
+                console.error('createFolderTreeDialog function not found');
+                alert('Folder tree selector not loaded. Please refresh the page.');
+            }
+        });
+        
+        // Initialize display
+        updateDisplay();
+    })();
+
+    // Form functionality
+    (function() {
     
     // Insert or toggle checklist item at the beginning of the current line
     function insertChecklistItem() {
@@ -685,6 +741,7 @@
             document.getElementById('lock_password').required = this.checked;
         });
     }
+    })(); // Close the Form functionality section
 
     // Client-side encryption
     class NoteEncryption {
@@ -1181,4 +1238,6 @@
         });
     })();
 </script>
+
+<script src="{% static 'js/folder-tree-selector.js' %}"></script>
 {% endblock %}

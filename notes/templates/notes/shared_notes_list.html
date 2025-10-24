@@ -332,6 +332,64 @@
             max-height: none;
         }
     }
+    
+    /* Folder cards */
+    .folder-card {
+        background: linear-gradient(135deg, var(--accent-primary), #4c7dff);
+        border: 1px solid var(--accent-primary);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        min-height: 120px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .folder-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.3);
+    }
+    
+    .folder-card:active {
+        transform: translateY(0);
+    }
+    
+    .folder-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+    }
+    
+    .folder-card-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+        z-index: 1;
+    }
+    
+    .folder-card h3 {
+        color: white;
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        font-weight: 600;
+        z-index: 1;
+    }
+    
+    .folder-card-meta {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: auto;
+        z-index: 1;
+    }
 </style>
 {% endblock %}
 
@@ -354,7 +412,13 @@
             </h3>
             <ul class="folder-list">
                 <li class="folder-item">
-                    <a href="{% url 'shared_notes_list' friend.id %}" class="folder-link {% if not current_folder %}active{% endif %}">
+                    <a href="{% url 'shared_notes_list' friend.id %}?folder=" class="folder-link {% if request.GET.folder == '' or request.GET.folder is None and not current_folder %}active{% endif %}">
+                        <span class="folder-icon">🏠</span>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="folder-item">
+                    <a href="{% url 'shared_notes_list' friend.id %}?folder=all" class="folder-link {% if request.GET.folder == 'all' %}active{% endif %}">
                         <span class="folder-icon">📂</span>
                         <span>All Notes</span>
                     </a>
@@ -375,8 +439,34 @@
                     <button onclick="renameFolder({{ current_folder.id }}, '{{ current_folder.name|escapejs }}')" class="btn btn-secondary btn-sm">Rename</button>
                     <a href="{% url 'shared_folder_delete' current_folder.id %}" class="btn btn-danger btn-sm">Delete</a>
                 </div>
+            {% elif request.GET.folder == '' %}
+                <div style="margin-bottom: 16px;">
+                    <h3 style="color: var(--text-primary); margin: 0;">🏠 Home</h3>
+                    <p style="color: var(--text-secondary); margin: 8px 0 0 0; font-size: 14px;">Shared notes that aren't in any folder</p>
+                </div>
             {% endif %}
     
+    {% if subfolders %}
+        <div class="notes-grid">
+            {% for subfolder in subfolders %}
+                <div class="folder-card" onclick="window.location='?folder={{ subfolder.id }}'">
+                    <div class="folder-card-icon">📁</div>
+                    <h3>{{ subfolder.name }}</h3>
+                    <div class="folder-card-meta">
+                        {% with subfolder.notes.count as note_count %}
+                            {% with subfolder.subfolders.count as subfolder_count %}
+                                {% if note_count > 0 %}{{ note_count }} note{{ note_count|pluralize }}{% endif %}
+                                {% if note_count > 0 and subfolder_count > 0 %} • {% endif %}
+                                {% if subfolder_count > 0 %}{{ subfolder_count }} folder{{ subfolder_count|pluralize }}{% endif %}
+                                {% if note_count == 0 and subfolder_count == 0 %}Empty folder{% endif %}
+                            {% endwith %}
+                        {% endwith %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
     {% if shared_notes %}
         <div class="notes-grid">
             {% for note in shared_notes %}
@@ -411,11 +501,11 @@
                 </div>
             {% endfor %}
         </div>
-    {% else %}
+    {% elif not subfolders %}
         <div class="empty-state">
             <div class="empty-state-icon">📝</div>
-            <h3>No shared notes {% if current_folder %}in this folder{% else %}yet{% endif %}</h3>
-            <p>{% if current_folder %}This folder is empty. {% endif %}Create shared notes with {{ friend.username }}.</p>
+            <h3>No shared notes {% if current_folder %}in this folder{% elif request.GET.folder == '' %}in Home{% else %}yet{% endif %}</h3>
+            <p>{% if current_folder %}This folder is empty. {% elif request.GET.folder == '' %}Home contains shared notes that aren't in any folder. {% endif %}Create shared notes with {{ friend.username }}.</p>
             <a href="{% url 'shared_note_create' friend.id %}{% if current_folder %}?folder={{ current_folder.id }}{% endif %}" class="btn btn-primary">Create Shared Note</a>
         </div>
     {% endif %}
@@ -480,33 +570,19 @@
     
     function showMoveDialog(noteId, currentFolderId) {
         const folders = {{ shared_folders_json|safe }};
-        const folderOptions = folders.map(f => {
-            return `<option value="${f.id}" ${f.id === currentFolderId ? 'selected' : ''}>${f.name}</option>`;
-        }).join('');
         
-        const dialog = document.createElement('div');
-        dialog.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-        dialog.innerHTML = `
-            <div style="background: var(--bg-secondary); padding: 24px; border-radius: 12px; max-width: 400px; width: 90%;">
-                <h3 style="margin: 0 0 16px 0; color: var(--text-primary);">Move Shared Note</h3>
-                <select id="move-folder-select" style="width: 100%; padding: 10px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); margin-bottom: 16px;">
-                    <option value="">Root (No Folder)</option>
-                    ${folderOptions}
-                </select>
-                <div style="display: flex; gap: 12px;">
-                    <button onclick="moveNoteToFolder(${noteId})" style="flex: 1; padding: 10px; background: var(--accent-primary); color: white; border: none; border-radius: 8px; cursor: pointer;">Move</button>
-                    <button onclick="this.closest('div').parentElement.parentElement.remove()" style="flex: 1; padding: 10px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 8px; cursor: pointer;">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(dialog);
-        dialog.addEventListener('click', (e) => {
-            if (e.target === dialog) dialog.remove();
-        });
+        createFolderTreeDialog(
+            'Move Shared Note',
+            folders,
+            currentFolderId,
+            (selectedFolderId) => {
+                moveNoteToFolder(noteId, selectedFolderId);
+            }
+        );
     }
     
-    function moveNoteToFolder(noteId) {
-        const folderId = document.getElementById('move-folder-select').value;
+    function moveNoteToFolder(noteId, selectedFolderId) {
+        const folderId = selectedFolderId || '';
         
         fetch(`/shared-notes/${noteId}/move/`, {
             method: 'POST',
@@ -555,4 +631,5 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="{% static 'js/markdown-renderer.js' %}"></script>
 <script src="{% static 'js/note-preview-renderer.js' %}"></script>
+<script src="{% static 'js/folder-tree-selector.js' %}"></script>
 {% endblock %}

@@ -26,13 +26,16 @@ def note_list(request):
     # Filter by folder if specified
     folder_id = request.GET.get("folder")
     current_folder = None
-    if folder_id:
+    if folder_id == "all":  # Show all notes regardless of folder
+        # Don't filter by folder, show all notes
+        pass
+    elif folder_id:
         try:
             current_folder = Folder.objects.get(id=folder_id, user=request.user)
             notes = notes.filter(folder=current_folder)
         except Folder.DoesNotExist:
             pass
-    elif folder_id == "":  # Empty string means root (no folder)
+    else:  # Default to Home (no folder) when no folder parameter or empty string
         notes = notes.filter(folder__isnull=True)
 
     # Filter by tags if specified
@@ -49,6 +52,14 @@ def note_list(request):
 
     # Get all folders for the sidebar
     folders = Folder.objects.filter(user=request.user)
+    
+    # Get subfolders for the current folder if viewing a specific folder
+    # For Home view (no current folder), show root-level folders
+    subfolders = []
+    if current_folder:
+        subfolders = Folder.objects.filter(user=request.user, parent=current_folder).order_by('name')
+    elif folder_id != "all":  # Home view - show root folders
+        subfolders = Folder.objects.filter(user=request.user, parent__isnull=True).order_by('name')
     
     # Serialize folders for JavaScript
     import json
@@ -67,6 +78,7 @@ def note_list(request):
             "folders": folders,
             "folders_json": folders_json,
             "current_folder": current_folder,
+            "subfolders": subfolders,
         },
     )
 
@@ -165,12 +177,20 @@ def note_create(request):
         except Folder.DoesNotExist:
             pass
     
+    # Serialize folders for JavaScript
+    import json
+    folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in folders
+    ])
+    
     return render(
         request,
         "notes/note_form.html",
         {
             "user_tags": user_tags,
             "folders": folders,
+            "folders_json": folders_json,
             "current_folder": current_folder,
         },
     )
@@ -283,6 +303,14 @@ def note_edit(request, pk):
     # Return note data for editing (client will handle decryption if needed)
     user_tags = Tag.objects.filter(user=request.user)
     folders = Folder.objects.filter(user=request.user)
+    
+    # Serialize folders for JavaScript
+    import json
+    folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in folders
+    ])
+    
     return render(
         request,
         "notes/note_form.html",
@@ -290,6 +318,7 @@ def note_edit(request, pk):
             "note": note,
             "user_tags": user_tags,
             "folders": folders,
+            "folders_json": folders_json,
         },
     )
 
@@ -631,7 +660,10 @@ def shared_notes_list(request, friend_id):
     # Filter by folder if specified
     folder_id = request.GET.get("folder")
     current_folder = None
-    if folder_id:
+    if folder_id == "all":  # Show all shared notes regardless of folder
+        # Don't filter by folder, show all shared notes
+        pass
+    elif folder_id:
         try:
             current_folder = SharedFolder.objects.get(id=folder_id)
             if not current_folder.has_access(request.user):
@@ -640,13 +672,27 @@ def shared_notes_list(request, friend_id):
             shared_notes = shared_notes.filter(folder=current_folder)
         except SharedFolder.DoesNotExist:
             pass
-    elif folder_id == "":  # Empty string means root (no folder)
+    else:  # Default to Home (no folder) when no folder parameter or empty string
         shared_notes = shared_notes.filter(folder__isnull=True)
 
     # Get all shared folders for this friendship
     shared_folders = SharedFolder.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
+    
+    # Get subfolders for the current folder if viewing a specific folder
+    # For Home view (no current folder), show root-level folders
+    subfolders = []
+    if current_folder:
+        subfolders = SharedFolder.objects.filter(
+            Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user),
+            parent=current_folder
+        ).order_by('name')
+    elif folder_id != "all":  # Home view - show root folders
+        subfolders = SharedFolder.objects.filter(
+            Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user),
+            parent__isnull=True
+        ).order_by('name')
     
     # Serialize folders for JavaScript
     import json
@@ -664,6 +710,7 @@ def shared_notes_list(request, friend_id):
             "shared_folders": shared_folders,
             "shared_folders_json": shared_folders_json,
             "current_folder": current_folder,
+            "subfolders": subfolders,
         },
     )
 
@@ -772,6 +819,13 @@ def shared_note_create(request, friend_id):
         except SharedFolder.DoesNotExist:
             pass
 
+    # Serialize folders for JavaScript
+    import json
+    shared_folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in shared_folders
+    ])
+
     return render(
         request,
         "notes/shared_note_form.html",
@@ -779,6 +833,7 @@ def shared_note_create(request, friend_id):
             "friend": friend,
             "user_tags": user_tags,
             "shared_folders": shared_folders,
+            "shared_folders_json": shared_folders_json,
             "current_folder": current_folder,
         },
     )
@@ -908,6 +963,13 @@ def shared_note_edit(request, note_id):
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
 
+    # Serialize folders for JavaScript
+    import json
+    shared_folders_json = json.dumps([
+        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
+        for folder in shared_folders
+    ])
+
     return render(
         request,
         "notes/shared_note_form.html",
@@ -916,6 +978,7 @@ def shared_note_edit(request, note_id):
             "user_tags": user_tags,
             "friend": friend,
             "shared_folders": shared_folders,
+            "shared_folders_json": shared_folders_json,
         },
     )
 
