@@ -1,5 +1,5 @@
 from django.test import TestCase
-from .models import Note, NoteVersion
+from .models import Note, NoteVersion, Folder, SharedFolder, Friendship
 
 
 class NoteVersionTestCase(TestCase):
@@ -78,6 +78,128 @@ class NoteVersionTestCase(TestCase):
         response = self.client.get(f'/history/{note.pk}/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'History: Test Note')
+
+
+class FolderTestCase(TestCase):
+    def setUp(self):
+        """Set up test user"""
+        from .models import CustomUser
+        self.user = CustomUser.objects.create_user(username='testuser', password='testpass')
+        self.client.login(username='testuser', password='testpass')
+        
+    def test_folder_creation(self):
+        """Test that a folder can be created"""
+        folder = Folder.objects.create(user=self.user, name='Test Folder')
+        self.assertEqual(folder.name, 'Test Folder')
+        self.assertEqual(folder.user, self.user)
+        self.assertIsNone(folder.parent)
+        
+    def test_subfolder_creation(self):
+        """Test that a subfolder can be created"""
+        parent = Folder.objects.create(user=self.user, name='Parent')
+        child = Folder.objects.create(user=self.user, name='Child', parent=parent)
+        self.assertEqual(child.parent, parent)
+        self.assertEqual(child.get_full_path(), 'Parent/Child')
+        
+    def test_note_in_folder(self):
+        """Test that a note can be added to a folder"""
+        folder = Folder.objects.create(user=self.user, name='Test Folder')
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Note',
+            content='Test content',
+            folder=folder
+        )
+        self.assertEqual(note.folder, folder)
+        self.assertEqual(folder.notes.count(), 1)
+        
+    def test_folder_delete_moves_notes_to_parent(self):
+        """Test that deleting a folder moves notes to parent"""
+        parent = Folder.objects.create(user=self.user, name='Parent')
+        child = Folder.objects.create(user=self.user, name='Child', parent=parent)
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Note',
+            content='Test content',
+            folder=child
+        )
+        
+        # Delete child folder via view
+        response = self.client.post(f'/folders/{child.id}/delete/')
+        
+        # Check note moved to parent
+        note.refresh_from_db()
+        self.assertEqual(note.folder, parent)
+        
+    def test_folder_list_filtered_by_folder(self):
+        """Test that notes can be filtered by folder"""
+        folder1 = Folder.objects.create(user=self.user, name='Folder 1')
+        folder2 = Folder.objects.create(user=self.user, name='Folder 2')
+        
+        note1 = Note.objects.create(
+            user=self.user,
+            title='Note 1',
+            content='Content 1',
+            folder=folder1
+        )
+        note2 = Note.objects.create(
+            user=self.user,
+            title='Note 2',
+            content='Content 2',
+            folder=folder2
+        )
+        
+        # Get notes in folder1
+        response = self.client.get(f'/?folder={folder1.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Note 1')
+        self.assertNotContains(response, 'Note 2')
+
+
+class SharedFolderTestCase(TestCase):
+    def setUp(self):
+        """Set up test users and friendship"""
+        from .models import CustomUser
+        self.user1 = CustomUser.objects.create_user(username='user1', password='testpass')
+        self.user2 = CustomUser.objects.create_user(username='user2', password='testpass')
+        
+        # Create friendship
+        Friendship.objects.create(user1=self.user1, user2=self.user2)
+        
+        self.client.login(username='user1', password='testpass')
+        
+    def test_shared_folder_creation(self):
+        """Test that a shared folder can be created"""
+        folder = SharedFolder.objects.create(
+            user1=self.user1,
+            user2=self.user2,
+            name='Shared Folder'
+        )
+        self.assertEqual(folder.name, 'Shared Folder')
+        self.assertTrue(folder.has_access(self.user1))
+        self.assertTrue(folder.has_access(self.user2))
+        
+    def test_shared_note_in_folder(self):
+        """Test that a shared note can be added to a shared folder"""
+        from .models import SharedNote
+        
+        folder = SharedFolder.objects.create(
+            user1=self.user1,
+            user2=self.user2,
+            name='Shared Folder'
+        )
+        
+        note = SharedNote.objects.create(
+            user1=self.user1,
+            user2=self.user2,
+            title='Shared Note',
+            content='Shared content',
+            folder=folder,
+            created_by=self.user1
+        )
+        
+        self.assertEqual(note.folder, folder)
+        self.assertEqual(folder.notes.count(), 1)
 
 
 class DarkModeTestCase(TestCase):

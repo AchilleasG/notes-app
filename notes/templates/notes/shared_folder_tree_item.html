@@ -1,0 +1,48 @@
+<li class="folder-item">
+    <div class="folder-link {% if current_folder and current_folder.id == folder.id %}active{% endif %}" onclick="window.location='?folder={{ folder.id }}'">
+        <span class="folder-icon">📁</span>
+        <span>{{ folder.name }}</span>
+        <div class="folder-actions" onclick="event.stopPropagation()">
+            <button onclick="createFolderIn({{ folder.id }})" class="folder-action-btn" title="New Subfolder">+</button>
+            <button onclick="renameFolder({{ folder.id }}, '{{ folder.name|escapejs }}')" class="folder-action-btn" title="Rename">✏️</button>
+            <a href="{% url 'shared_folder_delete' folder.id %}" class="folder-action-btn" title="Delete">🗑️</a>
+        </div>
+    </div>
+    {% if folder.subfolders.all %}
+        <ul class="subfolder-list">
+            {% for subfolder in folder.subfolders.all %}
+                {% include 'notes/shared_folder_tree_item.html' with folder=subfolder %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
+
+<script>
+function createFolderIn(parentId) {
+    const name = prompt('Enter folder name:');
+    if (!name) return;
+    
+    fetch('{% url "shared_folder_create" friend.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: `name=${encodeURIComponent(name)}&parent=${parentId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to create folder');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to create folder');
+    });
+}
+
+window.createFolderIn = createFolderIn;
+</script>

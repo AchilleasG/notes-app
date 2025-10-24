@@ -13,6 +13,12 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
     path("api/tags/autocomplete/", views.tag_autocomplete, name="tag_autocomplete"),
     
+    # Folder management URLs
+    path("folders/create/", views.folder_create, name="folder_create"),
+    path("folders/<int:folder_id>/rename/", views.folder_rename, name="folder_rename"),
+    path("folders/<int:folder_id>/delete/", views.folder_delete, name="folder_delete"),
+    path("notes/<int:note_id>/move/", views.note_move, name="note_move"),
+    
     # Friends system URLs
     path("friends/", views.friends_list, name="friends_list"),
     path("friends/search/", views.search_users, name="search_users"),
@@ -25,4 +31,10 @@ urlpatterns = [
     path("shared-notes/<int:note_id>/", views.shared_note_view, name="shared_note_view"),
     path("shared-notes/<int:note_id>/edit/", views.shared_note_edit, name="shared_note_edit"),
     path("shared-notes/<int:note_id>/delete/", views.shared_note_delete, name="shared_note_delete"),
+    path("shared-notes/<int:note_id>/move/", views.shared_note_move, name="shared_note_move"),
+    
+    # Shared folder management URLs
+    path("friends/<int:friend_id>/shared-folders/create/", views.shared_folder_create, name="shared_folder_create"),
+    path("shared-folders/<int:folder_id>/rename/", views.shared_folder_rename, name="shared_folder_rename"),
+    path("shared-folders/<int:folder_id>/delete/", views.shared_folder_delete, name="shared_folder_delete"),
 ]

@@ -34,6 +34,40 @@ class Tag(models.Model):
         return self.name
 
 
+class Folder(models.Model):
+    """Folder model for organizing personal notes"""
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="folders")
+    name = models.CharField(max_length=100)
+    parent = models.ForeignKey(
+        "self", 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True, 
+        related_name="subfolders"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ["user", "name", "parent"]  # Unique folder names within same parent
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name}/{self.name}"
+        return self.name
+
+    def get_full_path(self):
+        """Get the full path of the folder"""
+        path = [self.name]
+        current = self.parent
+        while current:
+            path.insert(0, current.name)
+            current = current.parent
+        return "/".join(path)
+
+
 class Note(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
@@ -43,6 +77,13 @@ class Note(models.Model):
         max_length=100, blank=True
     )  # Store salt for client-side encryption
     tags = models.ManyToManyField(Tag, related_name="notes", blank=True)
+    folder = models.ForeignKey(
+        Folder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notes"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -164,6 +205,50 @@ class FriendRequest(models.Model):
         return f"{self.from_user.username} -> {self.to_user.username} ({self.status})"
 
 
+class SharedFolder(models.Model):
+    """Folder model for organizing shared notes between two friends"""
+
+    user1 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="shared_folders_1"
+    )
+    user2 = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="shared_folders_2"
+    )
+    name = models.CharField(max_length=100)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subfolders"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        # Unique folder names within same parent for the same user pair
+        unique_together = [["user1", "user2", "name", "parent"]]
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name}/{self.name}"
+        return self.name
+
+    def get_full_path(self):
+        """Get the full path of the folder"""
+        path = [self.name]
+        current = self.parent
+        while current:
+            path.insert(0, current.name)
+            current = current.parent
+        return "/".join(path)
+
+    def has_access(self, user):
+        """Check if a user has access to this shared folder"""
+        return user == self.user1 or user == self.user2
+
+
 class SharedNote(models.Model):
     """A note shared between two friends"""
 
@@ -178,6 +263,13 @@ class SharedNote(models.Model):
     is_locked = models.BooleanField(default=False)
     salt = models.CharField(max_length=100, blank=True)
     tags = models.ManyToManyField(Tag, related_name="shared_notes", blank=True)
+    folder = models.ForeignKey(
+        SharedFolder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notes"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
