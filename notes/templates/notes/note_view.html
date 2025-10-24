@@ -521,7 +521,12 @@
         </div>
         
         <div id="noteContent" class="note-content">
-            {% if note.is_locked %}
+            {% if note.note_type == 'canvas' %}
+                <!-- Canvas Note Content -->
+                {% with note_id=note.pk elements_json=note.canvas_elements.all|safe csrf_token=csrf_token %}
+                    {% include "notes/canvas_editor_partial.html" %}
+                {% endwith %}
+            {% elif note.is_locked %}
                 <div class="encrypted-placeholder">
                     <span class="lock-icon">🔒</span>
                     <h3>This note is encrypted</h3>
@@ -531,7 +536,7 @@
                     </button>
                 </div>
             {% else %}
-                <!-- Content will be rendered client-side -->
+                <!-- Markdown content will be rendered client-side -->
             {% endif %}
         </div>
         
@@ -784,6 +789,7 @@ const noteData = {
     id: {{ note.pk }},
     title: "{{ note.title|escapejs }}",
     content: "{{ note.content|escapejs }}",
+    noteType: "{{ note.note_type }}",
     isLocked: {{ note.is_locked|yesno:"true,false" }},
     salt: "{{ note.salt|default:"" }}",
     createdAt: "{{ note.created_at.isoformat|escapejs }}",
@@ -925,6 +931,12 @@ function initializeCheckboxHandlers() {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing...');
+    
+    // Skip markdown rendering for canvas notes
+    if (noteData.noteType === 'canvas') {
+        console.log('Canvas note detected, skipping markdown rendering');
+        return;
+    }
     
     // Check if noteEncryption is available
     if (typeof window.noteEncryption === 'undefined') {

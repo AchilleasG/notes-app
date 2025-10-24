@@ -392,6 +392,14 @@ def note_view(request, pk):
 
     # Get all notes for the sidebar
     all_notes = Note.objects.filter(user=request.user).order_by("-updated_at")
+    
+    # For canvas notes, get elements as JSON
+    elements_json = "[]"
+    if note.note_type == 'canvas':
+        import json
+        from .models import CanvasElement
+        elements = CanvasElement.objects.filter(note=note)
+        elements_json = json.dumps([element.to_dict() for element in elements])
 
     # Pass note data to client (client will handle decryption if needed)
     return render(
@@ -400,6 +408,7 @@ def note_view(request, pk):
         {
             "note": note,
             "all_notes": all_notes,
+            "elements_json": elements_json,
         },
     )
 
@@ -885,10 +894,24 @@ def shared_note_view(request, note_id):
     all_notes = SharedNote.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     ).order_by("-updated_at")
+    
+    # For canvas notes, get elements as JSON
+    elements_json = "[]"
+    if shared_note.note_type == 'canvas':
+        import json
+        from .models import CanvasElement
+        elements = CanvasElement.objects.filter(shared_note=shared_note)
+        elements_json = json.dumps([element.to_dict() for element in elements])
+    
     return render(
         request,
         "notes/shared_note_view.html",
-        {"shared_note": shared_note, "all_notes": all_notes, "friend": friend},
+        {
+            "shared_note": shared_note,
+            "all_notes": all_notes,
+            "friend": friend,
+            "elements_json": elements_json,
+        },
     )
 
 
