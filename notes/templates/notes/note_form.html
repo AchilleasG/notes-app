@@ -402,6 +402,30 @@
             <input type="text" id="title" name="title" value="{{ note.title|default:'' }}" required placeholder="Enter note title...">
         </div>
         
+        {% if not note %}
+        <!-- Note type selector (only shown when creating a new note) -->
+        <div class="form-group">
+            <label>Note Type</label>
+            <div class="note-type-selector">
+                <label class="note-type-option selected" data-type="markdown">
+                    <input type="radio" name="note_type" value="markdown" checked>
+                    <span class="note-type-icon">📝</span>
+                    <div class="note-type-title">Markdown Note</div>
+                    <div class="note-type-description">Rich text with formatting, lists, and checkboxes</div>
+                </label>
+                <label class="note-type-option" data-type="canvas">
+                    <input type="radio" name="note_type" value="canvas">
+                    <span class="note-type-icon">🎨</span>
+                    <div class="note-type-title">Canvas Note</div>
+                    <div class="note-type-description">Freeform canvas with draggable text boxes and images</div>
+                </label>
+            </div>
+        </div>
+        {% else %}
+        <!-- Hidden field for existing notes -->
+        <input type="hidden" name="note_type" value="{{ note.note_type }}">
+        {% endif %}
+        
         <div class="form-group">
             <label for="folder">Folder</label>
             <div id="folder-selector-container" style="border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-secondary); min-height: 50px; cursor: pointer; position: relative;">
@@ -413,9 +437,9 @@
             <input type="hidden" id="folder" name="folder" value="">
         </div>
         
-        <div class="form-group">
+        <div class="form-group" id="contentGroup">
             <label for="content">Content</label>
-            <div class="markdown-toolbar">
+            <div class="markdown-toolbar" id="markdownToolbar">
                 <button type="button" onclick="insertMarkdown('**', '**')" title="Bold"><strong>B</strong></button>
                 <button type="button" onclick="insertMarkdown('*', '*')" title="Italic"><em>I</em></button>
                 <button type="button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
@@ -425,7 +449,7 @@
                 <button type="button" onclick="insertMarkdown('[', '](url)')" title="Link">🔗 Link</button>
                 <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt;</button>
             </div>
-            <textarea id="content" name="content" class="with-toolbar" required placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
+            <textarea id="content" name="content" class="with-toolbar" {% if not note %}required{% endif %} placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
         </div>
         
         <div class="form-group">
@@ -440,11 +464,12 @@
         </div>
         
         {% if not note or not note.is_locked %}
-        <div class="form-group">
+        <div class="form-group" id="encryptionGroup">
             <label class="checkbox-label">
                 <input type="checkbox" id="is_locked" name="is_locked" {% if is_locked %}checked{% endif %}>
                 <span>🔒 Encrypt this note with a password</span>
             </label>
+            <small style="display: block; margin-top: 8px; color: var(--text-secondary);">Note: Canvas notes cannot be encrypted</small>
         </div>
         <div class="form-group" id="passwordGroup" style="display: {% if is_locked %}block{% else %}none{% endif %};">
             <label for="lock_password">Encryption Password</label>
@@ -527,6 +552,50 @@
         // Initialize display
         updateDisplay();
     })();
+
+    // Note type selector functionality (only for new notes)
+    {% if not note %}
+    (function() {
+        const noteTypeOptions = document.querySelectorAll('.note-type-option');
+        const contentGroup = document.getElementById('contentGroup');
+        const markdownToolbar = document.getElementById('markdownToolbar');
+        const contentTextarea = document.getElementById('content');
+        const tagsGroup = contentGroup.nextElementSibling; // Tags group
+        const encryptionGroup = document.getElementById('encryptionGroup');
+        
+        noteTypeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Update selection UI
+                noteTypeOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Check the radio button
+                this.querySelector('input[type="radio"]').checked = true;
+                
+                const selectedType = this.dataset.type;
+                
+                // Show/hide appropriate form elements
+                if (selectedType === 'canvas') {
+                    // Hide markdown-specific fields
+                    contentGroup.style.display = 'none';
+                    if (tagsGroup) tagsGroup.style.display = 'none';
+                    if (encryptionGroup) encryptionGroup.style.display = 'none';
+                    
+                    // Remove required from content for canvas notes
+                    contentTextarea.required = false;
+                } else {
+                    // Show markdown-specific fields
+                    contentGroup.style.display = 'block';
+                    if (tagsGroup) tagsGroup.style.display = 'block';
+                    if (encryptionGroup) encryptionGroup.style.display = 'block';
+                    
+                    // Add required back for markdown notes
+                    contentTextarea.required = true;
+                }
+            });
+        });
+    })();
+    {% endif %}
 
     // Form functionality
     (function() {

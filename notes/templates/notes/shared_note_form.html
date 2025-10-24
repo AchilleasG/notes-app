@@ -407,6 +407,30 @@
                 <input type="text" id="title" name="title" value="{% if shared_note %}{{ shared_note.title }}{% endif %}" required placeholder="Enter note title...">
             </div>
             
+            {% if not shared_note %}
+            <!-- Note type selector (only shown when creating a new note) -->
+            <div class="form-group">
+                <label>Note Type</label>
+                <div class="note-type-selector">
+                    <label class="note-type-option selected" data-type="markdown">
+                        <input type="radio" name="note_type" value="markdown" checked>
+                        <span class="note-type-icon">📝</span>
+                        <div class="note-type-title">Markdown Note</div>
+                        <div class="note-type-description">Rich text with formatting, lists, and checkboxes</div>
+                    </label>
+                    <label class="note-type-option" data-type="canvas">
+                        <input type="radio" name="note_type" value="canvas">
+                        <span class="note-type-icon">🎨</span>
+                        <div class="note-type-title">Canvas Note</div>
+                        <div class="note-type-description">Freeform canvas with draggable text boxes and images</div>
+                    </label>
+                </div>
+            </div>
+            {% else %}
+            <!-- Hidden field for existing notes -->
+            <input type="hidden" name="note_type" value="{{ shared_note.note_type }}">
+            {% endif %}
+            
             <div class="form-group">
                 <label for="folder">Folder</label>
                 <div id="folder-selector-container" style="border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-secondary); min-height: 50px; cursor: pointer; position: relative;">
@@ -418,9 +442,9 @@
                 <input type="hidden" id="folder" name="folder" value="">
             </div>
             
-            <div class="form-group">
+            <div class="form-group" id="contentGroup">
                 <label for="content">Content</label>
-                <div class="markdown-toolbar">
+                <div class="markdown-toolbar" id="markdownToolbar">
                     <button type="button" onclick="insertMarkdown('**', '**')" title="Bold"><strong>B</strong></button>
                     <button type="button" onclick="insertMarkdown('*', '*')" title="Italic"><em>I</em></button>
                     <button type="button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
@@ -430,7 +454,7 @@
                     <button type="button" onclick="insertMarkdown('[', '](url)')" title="Link">🔗 Link</button>
                     <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt;</button>
                 </div>
-                <textarea id="content" name="content" class="with-toolbar" required placeholder="Write your note in Markdown format...">{% if shared_note and not shared_note.is_locked %}{{ shared_note.content }}{% endif %}</textarea>
+                <textarea id="content" name="content" class="with-toolbar" {% if not shared_note %}required{% endif %} placeholder="Write your note in Markdown format...">{% if shared_note and not shared_note.is_locked %}{{ shared_note.content }}{% endif %}</textarea>
             </div>
             
             <div class="form-group">
