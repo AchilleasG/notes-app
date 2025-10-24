@@ -23,29 +23,34 @@ from .forms import CustomUserChangeForm, CustomPasswordChangeForm
 def note_list(request):
     notes = Note.objects.filter(user=request.user)
 
-    # Filter by folder if specified
-    folder_id = request.GET.get("folder")
-    current_folder = None
-    if folder_id == "all":  # Show all notes regardless of folder
-        # Don't filter by folder, show all notes
-        pass
-    elif folder_id:
-        try:
-            current_folder = Folder.objects.get(id=folder_id, user=request.user)
-            notes = notes.filter(folder=current_folder)
-        except Folder.DoesNotExist:
-            pass
-    else:  # Default to Home (no folder) when no folder parameter or empty string
-        notes = notes.filter(folder__isnull=True)
-
     # Filter by tags if specified
     tag_filter = request.GET.get("tags", "").strip()
+    
+    # Filter by folder if specified (but not when searching by tags)
+    folder_id = request.GET.get("folder")
+    current_folder = None
+    
     if tag_filter:
+        # When searching by tags, show results from ALL folders
         # Split by comma and filter (case-insensitive)
         tag_names = [t.strip() for t in tag_filter.split(",") if t.strip()]
         for tag_name in tag_names:
             notes = notes.filter(tags__name__iexact=tag_name)
         notes = notes.distinct()
+        # Don't apply folder filtering when searching by tags
+    else:
+        # Only apply folder filtering when NOT searching by tags
+        if folder_id == "all":  # Show all notes regardless of folder
+            # Don't filter by folder, show all notes
+            pass
+        elif folder_id:
+            try:
+                current_folder = Folder.objects.get(id=folder_id, user=request.user)
+                notes = notes.filter(folder=current_folder)
+            except Folder.DoesNotExist:
+                pass
+        else:  # Default to Home (no folder) when no folder parameter or empty string
+            notes = notes.filter(folder__isnull=True)
 
     # Get all tags for the current user
     user_tags = Tag.objects.filter(user=request.user)

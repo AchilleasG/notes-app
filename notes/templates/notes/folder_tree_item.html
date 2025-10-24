@@ -1,5 +1,5 @@
 <li class="folder-item">
-    <div class="folder-link {% if current_folder and current_folder.id == folder.id %}active{% endif %}" onclick="window.location='?folder={{ folder.id }}'">
+    <div class="folder-link {% if not selected_tags and current_folder and current_folder.id == folder.id %}active{% endif %}" onclick="window.location='?folder={{ folder.id }}'">>
         <span class="folder-icon">📁</span>
         <span>{{ folder.name }}</span>
         <div class="folder-actions" onclick="event.stopPropagation()">
