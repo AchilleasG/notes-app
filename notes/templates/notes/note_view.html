@@ -523,9 +523,7 @@
         <div id="noteContent" class="note-content">
             {% if note.note_type == 'canvas' %}
                 <!-- Canvas Note Content -->
-                {% with note_id=note.pk elements_json=note.canvas_elements.all|safe csrf_token=csrf_token %}
-                    {% include "notes/canvas_editor_partial.html" %}
-                {% endwith %}
+                {% include "notes/canvas_editor_partial.html" with note_id=note.pk elements_json=elements_json csrf_token=csrf_token %}
             {% elif note.is_locked %}
                 <div class="encrypted-placeholder">
                     <span class="lock-icon">🔒</span>

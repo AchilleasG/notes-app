@@ -134,7 +134,11 @@
         {% endif %}
     </div>
     
-    {% if shared_note.is_locked %}
+    {% if shared_note.note_type == 'canvas' %}
+        <div class="note-content" id="noteContent">
+            {% include "notes/canvas_editor_partial.html" with shared_note_id=shared_note.id elements_json=elements_json csrf_token=csrf_token %}
+        </div>
+    {% elif shared_note.is_locked %}
         <div class="encrypted-placeholder" id="encryptedPlaceholder">
             <span class="lock-icon">🔒</span>
             <h3>This note is encrypted</h3>

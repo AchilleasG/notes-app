@@ -55,9 +55,7 @@
     border-color: var(--accent-hover);
 }
 
-.btn-canvas-secondary {
-    /* Uses default button styles */
-}
+/* .btn-canvas-secondary uses default .btn-canvas styles; no overrides needed */
 
 .btn-canvas-danger {
     background: #dc2626;
@@ -76,25 +74,22 @@
     overflow: auto;
     background: var(--bg-primary);
     min-height: 500px;
+    contain: layout paint;
 }
 
 /* Grid background */
 .canvas-area.show-grid {
-    background-image: 
-        repeating-linear-gradient(
-            0deg,
+    background-image:
+        repeating-linear-gradient(0deg,
             transparent,
             transparent calc(var(--grid-size) - 1px),
             var(--border-secondary) calc(var(--grid-size) - 1px),
-            var(--border-secondary) var(--grid-size)
-        ),
-        repeating-linear-gradient(
-            90deg,
+            var(--border-secondary) var(--grid-size)),
+        repeating-linear-gradient(90deg,
             transparent,
             transparent calc(var(--grid-size) - 1px),
             var(--border-secondary) calc(var(--grid-size) - 1px),
-            var(--border-secondary) var(--grid-size)
-        );
+            var(--border-secondary) var(--grid-size));
     background-size: var(--grid-size) var(--grid-size);
 }
 
@@ -106,6 +101,7 @@
     border-radius: 8px;
     transition: border-color 0.2s ease;
     box-sizing: border-box;
+    will-change: transform, left, top, width, height;
 }
 
 .canvas-element:hover {
@@ -204,21 +200,21 @@
         padding: 8px;
         gap: 6px;
     }
-    
+
     .btn-canvas {
         padding: 6px 12px;
         font-size: 13px;
     }
-    
+
     .btn-canvas span:first-child {
         font-size: 16px;
     }
-    
+
     .resize-handle {
         width: 16px;
         height: 16px;
     }
-    
+
     .resize-handle-nw,
     .resize-handle-ne,
     .resize-handle-sw,
@@ -228,29 +224,30 @@
         right: auto;
         bottom: auto;
     }
-    
+
     .resize-handle-nw {
         top: -8px;
         left: -8px;
     }
-    
+
     .resize-handle-ne {
         top: -8px;
         right: -8px;
     }
-    
+
     .resize-handle-sw {
         bottom: -8px;
         left: -8px;
     }
-    
+
     .resize-handle-se {
         bottom: -8px;
         right: -8px;
     }
-    
+
     .canvas-textarea {
-        font-size: 16px; /* Prevent zoom on iOS */
+        font-size: 16px;
+        /* Prevent zoom on iOS */
     }
 }
 
@@ -260,9 +257,10 @@
         width: 20px;
         height: 20px;
     }
-    
+
     .canvas-element {
-        touch-action: none; /* Disable default touch actions */
+        touch-action: none;
+        /* Disable default touch actions */
     }
 }
 
@@ -331,20 +329,20 @@
     .note-type-selector {
         flex-direction: column;
     }
-    
+
     .note-type-option {
         padding: 12px;
     }
-    
+
     .note-type-icon {
         font-size: 28px;
         margin-bottom: 6px;
     }
-    
+
     .note-type-title {
         font-size: 15px;
     }
-    
+
     .note-type-description {
         font-size: 12px;
     }
