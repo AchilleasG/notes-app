@@ -142,7 +142,8 @@
 .canvas-image {
     background: var(--bg-secondary);
     box-shadow: 0 2px 8px var(--shadow-md);
-    overflow: hidden;
+    /* Allow resize handles to be visible around the image corners */
+    overflow: visible;
 }
 
 .canvas-image img {
