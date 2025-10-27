@@ -26,6 +26,15 @@ class CanvasEditor {
         this.selectedElement = null;
         // Guard to avoid re-registering document-level listeners
         this._staticListenersAttached = false;
+        
+        // Drawing mode state
+        this.drawingMode = null;  // null, 'rectangle', 'circle', 'line', 'freehand'
+        this.isDrawing = false;
+        this.drawingStartX = 0;
+        this.drawingStartY = 0;
+        this.currentPath = [];  // For freehand drawing
+        this.previewElement = null;  // For showing shape preview while drawing
+        
         this.dragState = {
             isDragging: false,
             element: null,
@@ -61,10 +70,22 @@ class CanvasEditor {
             <div class="canvas-editor">
                 <div class="canvas-toolbar">
                     <button type="button" class="btn-canvas btn-canvas-primary" data-action="add-textbox">
-                        <span>📝</span> Add Text
+                        <span>📝</span> Text
                     </button>
                     <button type="button" class="btn-canvas btn-canvas-primary" data-action="add-image">
-                        <span>🖼️</span> Add Image
+                        <span>🖼️</span> Image
+                    </button>
+                    <button type="button" class="btn-canvas ${this.drawingMode === 'rectangle' ? 'btn-canvas-active' : 'btn-canvas-secondary'}" data-action="draw-rectangle">
+                        <span>▭</span> Rectangle
+                    </button>
+                    <button type="button" class="btn-canvas ${this.drawingMode === 'circle' ? 'btn-canvas-active' : 'btn-canvas-secondary'}" data-action="draw-circle">
+                        <span>○</span> Circle
+                    </button>
+                    <button type="button" class="btn-canvas ${this.drawingMode === 'line' ? 'btn-canvas-active' : 'btn-canvas-secondary'}" data-action="draw-line">
+                        <span>╱</span> Line
+                    </button>
+                    <button type="button" class="btn-canvas ${this.drawingMode === 'freehand' ? 'btn-canvas-active' : 'btn-canvas-secondary'}" data-action="draw-freehand">
+                        <span>✏️</span> Draw
                     </button>
                     <button type="button" class="btn-canvas btn-canvas-secondary" data-action="toggle-grid">
                         <span>⊞</span> <span class="grid-toggle-text">${this.options.showGrid ? 'Hide' : 'Show'} Grid</span>
@@ -75,7 +96,7 @@ class CanvasEditor {
                         </button>
                     ` : ''}
                 </div>
-                <div class="canvas-area ${this.options.showGrid ? 'show-grid' : ''}" 
+                <div class="canvas-area ${this.options.showGrid ? 'show-grid' : ''} ${this.drawingMode ? 'drawing-mode' : ''}" 
                      style="--grid-size: ${this.options.gridSize}px;">
                     <!-- Elements will be rendered here -->
                 </div>
@@ -133,10 +154,24 @@ class CanvasEditor {
     handleToolbarAction(action) {
         switch (action) {
             case 'add-textbox':
+                this.exitDrawingMode();
                 this.addTextbox();
                 break;
             case 'add-image':
+                this.exitDrawingMode();
                 this.imageInput.click();
+                break;
+            case 'draw-rectangle':
+                this.enterDrawingMode('rectangle');
+                break;
+            case 'draw-circle':
+                this.enterDrawingMode('circle');
+                break;
+            case 'draw-line':
+                this.enterDrawingMode('line');
+                break;
+            case 'draw-freehand':
+                this.enterDrawingMode('freehand');
                 break;
             case 'toggle-grid':
                 this.toggleGrid();
@@ -145,6 +180,27 @@ class CanvasEditor {
                 this.deleteSelectedElement();
                 break;
         }
+    }
+    
+    enterDrawingMode(mode) {
+        this.drawingMode = mode;
+        this.deselectElement();
+        this.canvasArea.classList.add('drawing-mode');
+        this.canvasArea.style.cursor = 'crosshair';
+        this.createCanvas(); // Refresh toolbar to show active state
+        this.renderElements();
+    }
+    
+    exitDrawingMode() {
+        this.drawingMode = null;
+        this.isDrawing = false;
+        this.currentPath = [];
+        if (this.previewElement) {
+            this.previewElement.remove();
+            this.previewElement = null;
+        }
+        this.canvasArea.classList.remove('drawing-mode');
+        this.canvasArea.style.cursor = '';
     }
 
     toggleGrid() {
@@ -292,17 +348,61 @@ class CanvasEditor {
             img.alt = 'Canvas image';
             img.draggable = false;
             div.appendChild(img);
+        } else if (element.element_type === 'rectangle') {
+            div.classList.add('canvas-shape', 'canvas-rectangle');
+            div.style.border = `${element.stroke_width || 2}px solid ${element.stroke_color || '#000000'}`;
+            div.style.backgroundColor = element.fill_color || 'transparent';
+            div.style.pointerEvents = 'none';
+        } else if (element.element_type === 'circle') {
+            div.classList.add('canvas-shape', 'canvas-circle');
+            div.style.border = `${element.stroke_width || 2}px solid ${element.stroke_color || '#000000'}`;
+            div.style.backgroundColor = element.fill_color || 'transparent';
+            div.style.borderRadius = '50%';
+            div.style.pointerEvents = 'none';
+        } else if (element.element_type === 'line') {
+            div.classList.add('canvas-shape', 'canvas-line');
+            // For lines, draw using a rotated div
+            const length = Math.sqrt(element.width ** 2 + element.height ** 2);
+            const angle = Math.atan2(element.height, element.width) * (180 / Math.PI);
+            div.style.width = `${length}px`;
+            div.style.height = `${element.stroke_width || 2}px`;
+            div.style.backgroundColor = element.stroke_color || '#000000';
+            div.style.transform = `rotate(${angle}deg)`;
+            div.style.transformOrigin = '0 0';
+            div.style.pointerEvents = 'none';
+        } else if (element.element_type === 'freehand') {
+            div.classList.add('canvas-shape', 'canvas-freehand');
+            // Create SVG for freehand drawing
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.position = 'absolute';
+            svg.style.pointerEvents = 'none';
+            
+            if (element.path_data) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', element.path_data);
+                path.setAttribute('stroke', element.stroke_color || '#000000');
+                path.setAttribute('stroke-width', element.stroke_width || 2);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                svg.appendChild(path);
+            }
+            div.appendChild(svg);
         }
 
         if (!this.options.readonly) {
-            // Add resize handles
-            const handles = ['nw', 'ne', 'sw', 'se'];
-            handles.forEach(position => {
-                const handle = document.createElement('div');
-                handle.className = `resize-handle resize-handle-${position}`;
-                handle.dataset.handle = position;
-                div.appendChild(handle);
-            });
+            // Add resize handles only for textbox and image elements
+            if (element.element_type === 'textbox' || element.element_type === 'image') {
+                const handles = ['nw', 'ne', 'sw', 'se'];
+                handles.forEach(position => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle resize-handle-${position}`;
+                    handle.dataset.handle = position;
+                    div.appendChild(handle);
+                });
+            }
         }
 
         return div;
@@ -310,6 +410,12 @@ class CanvasEditor {
 
     handleMouseDown(e) {
         if (this.options.readonly) return;
+        
+        // If in drawing mode, start drawing
+        if (this.drawingMode) {
+            this.startDrawing(e.clientX, e.clientY);
+            return;
+        }
 
         const element = e.target.closest('.canvas-element');
         if (!element) {
@@ -385,7 +491,10 @@ class CanvasEditor {
     }
 
     handleMouseMove(e) {
-        if (this.dragState.isDragging) {
+        if (this.isDrawing) {
+            e.preventDefault();
+            this.continueDrawing(e.clientX, e.clientY);
+        } else if (this.dragState.isDragging) {
             e.preventDefault();
             this.performDrag(e.clientX, e.clientY);
         } else if (this.resizeState.isResizing) {
@@ -395,7 +504,11 @@ class CanvasEditor {
     }
 
     handleTouchMove(e) {
-        if (this.dragState.isDragging || this.resizeState.isResizing) {
+        if (this.isDrawing) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.continueDrawing(touch.clientX, touch.clientY);
+        } else if (this.dragState.isDragging || this.resizeState.isResizing) {
             e.preventDefault();
             const touch = e.touches[0];
             if (this.dragState.isDragging) {
@@ -472,7 +585,9 @@ class CanvasEditor {
     }
 
     handleMouseUp(e) {
-        if (this.dragState.isDragging) {
+        if (this.isDrawing) {
+            this.finishDrawing();
+        } else if (this.dragState.isDragging) {
             this.finishDrag();
         } else if (this.resizeState.isResizing) {
             this.finishResize();
@@ -480,7 +595,9 @@ class CanvasEditor {
     }
 
     handleTouchEnd(e) {
-        if (this.dragState.isDragging) {
+        if (this.isDrawing) {
+            this.finishDrawing();
+        } else if (this.dragState.isDragging) {
             this.finishDrag();
         } else if (this.resizeState.isResizing) {
             this.finishResize();
@@ -516,6 +633,235 @@ class CanvasEditor {
 
         this.updateElement(elementId, updates);
         this.resizeState = { isResizing: false, element: null };
+    }
+    
+    // Drawing methods
+    startDrawing(clientX, clientY) {
+        this.isDrawing = true;
+        const rect = this.canvasArea.getBoundingClientRect();
+        this.drawingStartX = clientX - rect.left + this.canvasArea.scrollLeft;
+        this.drawingStartY = clientY - rect.top + this.canvasArea.scrollTop;
+        this.drawingEndX = this.drawingStartX;
+        this.drawingEndY = this.drawingStartY;
+        
+        if (this.drawingMode === 'freehand') {
+            this.currentPath = [{x: this.drawingStartX, y: this.drawingStartY}];
+        }
+        
+        // Create preview element
+        this.previewElement = document.createElement('div');
+        this.previewElement.className = 'canvas-drawing-preview';
+        this.previewElement.style.position = 'absolute';
+        this.previewElement.style.pointerEvents = 'none';
+        this.canvasArea.appendChild(this.previewElement);
+    }
+    
+    continueDrawing(clientX, clientY) {
+        if (!this.isDrawing) return;
+        
+        const rect = this.canvasArea.getBoundingClientRect();
+        const currentX = clientX - rect.left + this.canvasArea.scrollLeft;
+        const currentY = clientY - rect.top + this.canvasArea.scrollTop;
+        
+        this.drawingEndX = currentX;
+        this.drawingEndY = currentY;
+        
+        if (this.drawingMode === 'freehand') {
+            this.currentPath.push({x: currentX, y: currentY});
+            this.updateFreehandPreview();
+        } else {
+            this.updateShapePreview(currentX, currentY);
+        }
+    }
+    
+    updateShapePreview(currentX, currentY) {
+        const x = Math.min(this.drawingStartX, currentX);
+        const y = Math.min(this.drawingStartY, currentY);
+        const width = Math.abs(currentX - this.drawingStartX);
+        const height = Math.abs(currentY - this.drawingStartY);
+        
+        this.previewElement.style.left = `${x}px`;
+        this.previewElement.style.top = `${y}px`;
+        this.previewElement.style.width = `${width}px`;
+        this.previewElement.style.height = `${height}px`;
+        this.previewElement.style.border = '2px dashed #000000';
+        
+        if (this.drawingMode === 'circle') {
+            this.previewElement.style.borderRadius = '50%';
+        } else if (this.drawingMode === 'line') {
+            const length = Math.sqrt(width ** 2 + height ** 2);
+            const angle = Math.atan2(currentY - this.drawingStartY, currentX - this.drawingStartX) * (180 / Math.PI);
+            this.previewElement.style.width = `${length}px`;
+            this.previewElement.style.height = '2px';
+            this.previewElement.style.left = `${this.drawingStartX}px`;
+            this.previewElement.style.top = `${this.drawingStartY}px`;
+            this.previewElement.style.transform = `rotate(${angle}deg)`;
+            this.previewElement.style.transformOrigin = '0 0';
+            this.previewElement.style.backgroundColor = '#000000';
+            this.previewElement.style.border = 'none';
+        }
+    }
+    
+    updateFreehandPreview() {
+        if (this.currentPath.length < 2) return;
+        
+        // Create SVG path for preview
+        this.previewElement.innerHTML = '';
+        const minX = Math.min(...this.currentPath.map(p => p.x));
+        const minY = Math.min(...this.currentPath.map(p => p.y));
+        const maxX = Math.max(...this.currentPath.map(p => p.x));
+        const maxY = Math.max(...this.currentPath.map(p => p.y));
+        
+        this.previewElement.style.left = `${minX}px`;
+        this.previewElement.style.top = `${minY}px`;
+        this.previewElement.style.width = `${maxX - minX}px`;
+        this.previewElement.style.height = `${maxY - minY}px`;
+        
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.position = 'absolute';
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = this.currentPath.map((p, i) => 
+            `${i === 0 ? 'M' : 'L'} ${p.x - minX} ${p.y - minY}`
+        ).join(' ');
+        
+        path.setAttribute('d', pathData);
+        path.setAttribute('stroke', '#000000');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        
+        svg.appendChild(path);
+        this.previewElement.appendChild(svg);
+    }
+    
+    async finishDrawing() {
+        if (!this.isDrawing) return;
+        this.isDrawing = false;
+        
+        // Remove preview
+        if (this.previewElement) {
+            this.previewElement.remove();
+            this.previewElement = null;
+        }
+        
+        // Create the actual element
+        if (this.drawingMode === 'freehand') {
+            if (this.currentPath.length < 2) {
+                this.currentPath = [];
+                return;
+            }
+            await this.createFreehandElement();
+        } else {
+            const rect = this.canvasArea.getBoundingClientRect();
+            await this.createShapeElement();
+        }
+    }
+    
+    async createShapeElement() {
+        const x = Math.min(this.drawingStartX, this.drawingEndX);
+        const y = Math.min(this.drawingStartY, this.drawingEndY);
+        const width = Math.abs(this.drawingEndX - this.drawingStartX);
+        const height = Math.abs(this.drawingEndY - this.drawingStartY);
+        
+        // Don't create tiny shapes
+        if (width < 10 || height < 10) return;
+        
+        const data = {
+            element_type: this.drawingMode,
+            x: Math.round(x),
+            y: Math.round(y),
+            width: Math.round(width),
+            height: Math.round(height),
+            stroke_color: '#000000',
+            fill_color: 'transparent',
+            stroke_width: 2,
+            z_index: this.elements.length,
+        };
+        
+        if (this.options.noteId) {
+            data.note_id = this.options.noteId;
+        } else if (this.options.sharedNoteId) {
+            data.shared_note_id = this.options.sharedNoteId;
+        }
+        
+        try {
+            const response = await fetch('/canvas/elements/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.options.csrfToken,
+                },
+                body: JSON.stringify(data),
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.elements.push(result.element);
+                this.renderElements();
+                this.options.onSave();
+            } else {
+                this.options.onError(result.error || 'Failed to create shape');
+            }
+        } catch (error) {
+            this.options.onError(error.message);
+        }
+    }
+    
+    async createFreehandElement() {
+        const minX = Math.min(...this.currentPath.map(p => p.x));
+        const minY = Math.min(...this.currentPath.map(p => p.y));
+        const maxX = Math.max(...this.currentPath.map(p => p.x));
+        const maxY = Math.max(...this.currentPath.map(p => p.y));
+        
+        // Convert path to relative coordinates and SVG path data
+        const pathData = this.currentPath.map((p, i) => 
+            `${i === 0 ? 'M' : 'L'} ${p.x - minX} ${p.y - minY}`
+        ).join(' ');
+        
+        const data = {
+            element_type: 'freehand',
+            x: Math.round(minX),
+            y: Math.round(minY),
+            width: Math.round(maxX - minX),
+            height: Math.round(maxY - minY),
+            stroke_color: '#000000',
+            stroke_width: 2,
+            path_data: pathData,
+            z_index: this.elements.length,
+        };
+        
+        if (this.options.noteId) {
+            data.note_id = this.options.noteId;
+        } else if (this.options.sharedNoteId) {
+            data.shared_note_id = this.options.sharedNoteId;
+        }
+        
+        try {
+            const response = await fetch('/canvas/elements/create/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.options.csrfToken,
+                },
+                body: JSON.stringify(data),
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.elements.push(result.element);
+                this.renderElements();
+                this.options.onSave();
+                this.currentPath = [];
+            } else {
+                this.options.onError(result.error || 'Failed to create drawing');
+            }
+        } catch (error) {
+            this.options.onError(error.message);
+        }
     }
 
     selectElement(element) {

@@ -57,6 +57,17 @@
 
 /* .btn-canvas-secondary uses default .btn-canvas styles; no overrides needed */
 
+.btn-canvas-active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.btn-canvas-active:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
 .btn-canvas-danger {
     background: #dc2626;
     color: white;
@@ -75,6 +86,15 @@
     background: var(--bg-primary);
     min-height: 500px;
     contain: layout paint;
+}
+
+.canvas-area.drawing-mode {
+    cursor: crosshair !important;
+}
+
+.canvas-drawing-preview {
+    pointer-events: none;
+    opacity: 0.7;
 }
 
 /* Grid background */
@@ -152,6 +172,27 @@
     object-fit: contain;
     display: block;
     pointer-events: none;
+}
+
+/* Shape Elements */
+.canvas-shape {
+    box-sizing: border-box;
+}
+
+.canvas-rectangle {
+    box-shadow: 0 2px 8px var(--shadow-md);
+}
+
+.canvas-circle {
+    box-shadow: 0 2px 8px var(--shadow-md);
+}
+
+.canvas-line {
+    box-shadow: 0 1px 4px var(--shadow-md);
+}
+
+.canvas-freehand {
+    overflow: visible;
 }
 
 /* Resize Handles */

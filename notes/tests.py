@@ -760,3 +760,84 @@ class CanvasNotesTestCase(TestCase):
         shared_note = SharedNote.objects.get(title='Shared Canvas Note')
         self.assertEqual(shared_note.note_type, 'canvas')
         self.assertFalse(shared_note.is_locked)
+        
+    def test_shape_element_creation(self):
+        """Test that shape elements can be created"""
+        from .models import Note, CanvasElement
+        import json
+        
+        # Create a canvas note
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Canvas Note',
+            note_type='canvas',
+            content=''
+        )
+        
+        # Create a rectangle element
+        response = self.client.post('/canvas/elements/create/', 
+            data=json.dumps({
+                'note_id': note.id,
+                'element_type': 'rectangle',
+                'x': 50,
+                'y': 50,
+                'width': 200,
+                'height': 100,
+                'stroke_color': '#000000',
+                'fill_color': '#ffffff',
+                'stroke_width': 2,
+                'z_index': 0,
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result['success'])
+        
+        # Check element was created
+        self.assertEqual(CanvasElement.objects.filter(note=note).count(), 1)
+        element = CanvasElement.objects.get(note=note)
+        self.assertEqual(element.element_type, 'rectangle')
+        self.assertEqual(element.stroke_color, '#000000')
+        self.assertEqual(element.fill_color, '#ffffff')
+        
+    def test_freehand_element_creation(self):
+        """Test that freehand drawing elements can be created"""
+        from .models import Note, CanvasElement
+        import json
+        
+        # Create a canvas note
+        note = Note.objects.create(
+            user=self.user,
+            title='Test Canvas Note',
+            note_type='canvas',
+            content=''
+        )
+        
+        # Create a freehand element
+        response = self.client.post('/canvas/elements/create/', 
+            data=json.dumps({
+                'note_id': note.id,
+                'element_type': 'freehand',
+                'x': 10,
+                'y': 10,
+                'width': 100,
+                'height': 100,
+                'stroke_color': '#000000',
+                'stroke_width': 2,
+                'path_data': 'M 0 0 L 10 10 L 20 5',
+                'z_index': 0,
+            }),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result['success'])
+        
+        # Check element was created
+        self.assertEqual(CanvasElement.objects.filter(note=note).count(), 1)
+        element = CanvasElement.objects.get(note=note)
+        self.assertEqual(element.element_type, 'freehand')
+        self.assertEqual(element.path_data, 'M 0 0 L 10 10 L 20 5')

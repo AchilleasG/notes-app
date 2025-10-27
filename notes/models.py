@@ -343,11 +343,15 @@ class ChatMessage(models.Model):
 
 
 class CanvasElement(models.Model):
-    """An element (textbox or image) in a canvas note"""
+    """An element (textbox, image, shape, or drawing) in a canvas note"""
     
     ELEMENT_TYPE_CHOICES = [
         ('textbox', 'Text Box'),
         ('image', 'Image'),
+        ('rectangle', 'Rectangle'),
+        ('circle', 'Circle'),
+        ('line', 'Line'),
+        ('freehand', 'Freehand Drawing'),
     ]
     
     # For personal notes
@@ -384,6 +388,14 @@ class CanvasElement(models.Model):
     # For image elements
     image = models.ImageField(upload_to='canvas_images/', blank=True, null=True)
     
+    # For shape elements (rectangle, circle, line) - store styling
+    stroke_color = models.CharField(max_length=7, default='#000000')  # Hex color
+    fill_color = models.CharField(max_length=7, default='#ffffff')  # Hex color
+    stroke_width = models.IntegerField(default=2)
+    
+    # For freehand drawing - store path data as JSON
+    path_data = models.TextField(blank=True, default='')  # JSON array of points
+    
     # Z-index for layering
     z_index = models.IntegerField(default=0)
     
@@ -413,5 +425,13 @@ class CanvasElement(models.Model):
             data['text_content'] = self.text_content
         elif self.element_type == 'image' and self.image:
             data['image_url'] = self.image.url
+        elif self.element_type in ['rectangle', 'circle', 'line']:
+            data['stroke_color'] = self.stroke_color
+            data['fill_color'] = self.fill_color
+            data['stroke_width'] = self.stroke_width
+        elif self.element_type == 'freehand':
+            data['stroke_color'] = self.stroke_color
+            data['stroke_width'] = self.stroke_width
+            data['path_data'] = self.path_data
             
         return data

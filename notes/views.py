@@ -1321,7 +1321,8 @@ def canvas_element_create(request):
             shared_note_id = data.get("shared_note_id")
             
             # Validate element type
-            if element_type not in ["textbox", "image"]:
+            valid_types = ["textbox", "image", "rectangle", "circle", "line", "freehand"]
+            if element_type not in valid_types:
                 return JsonResponse({"success": False, "error": "Invalid element type"})
             
             # Create the element
@@ -1337,6 +1338,16 @@ def canvas_element_create(request):
             # For textbox elements
             if element_type == "textbox":
                 element.text_content = data.get("text_content", "")
+            # For shape elements
+            elif element_type in ["rectangle", "circle", "line"]:
+                element.stroke_color = data.get("stroke_color", "#000000")
+                element.fill_color = data.get("fill_color", "#ffffff")
+                element.stroke_width = data.get("stroke_width", 2)
+            # For freehand drawing
+            elif element_type == "freehand":
+                element.stroke_color = data.get("stroke_color", "#000000")
+                element.stroke_width = data.get("stroke_width", 2)
+                element.path_data = data.get("path_data", "")
             
             # Associate with note or shared note
             if note_id:
@@ -1408,6 +1419,24 @@ def canvas_element_update(request, element_id):
             # Update content for textbox
             if element.element_type == "textbox" and "text_content" in data:
                 element.text_content = data["text_content"]
+            
+            # Update style for shapes
+            if element.element_type in ["rectangle", "circle", "line"]:
+                if "stroke_color" in data:
+                    element.stroke_color = data["stroke_color"]
+                if "fill_color" in data:
+                    element.fill_color = data["fill_color"]
+                if "stroke_width" in data:
+                    element.stroke_width = data["stroke_width"]
+            
+            # Update freehand drawing
+            if element.element_type == "freehand":
+                if "stroke_color" in data:
+                    element.stroke_color = data["stroke_color"]
+                if "stroke_width" in data:
+                    element.stroke_width = data["stroke_width"]
+                if "path_data" in data:
+                    element.path_data = data["path_data"]
             
             element.save()
             
