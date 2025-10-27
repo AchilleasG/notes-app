@@ -134,7 +134,11 @@
         {% endif %}
     </div>
     
-    {% if shared_note.is_locked %}
+    {% if shared_note.note_type == 'canvas' %}
+        <div class="note-content" id="noteContent">
+            {% include "notes/canvas_editor_partial.html" with shared_note_id=shared_note.id elements_json=elements_json csrf_token=csrf_token %}
+        </div>
+    {% elif shared_note.is_locked %}
         <div class="encrypted-placeholder" id="encryptedPlaceholder">
             <span class="lock-icon">🔒</span>
             <h3>This note is encrypted</h3>
@@ -159,6 +163,9 @@
 <!-- Load our markdown renderer and checkbox handler -->
 <script src="{% static 'js/markdown-renderer.js' %}"></script>
 <script src="{% static 'js/checkbox-handler.js' %}"></script>
+
+<!-- CSRF Token for AJAX requests (required by checkbox handler / other scripts) -->
+{% csrf_token %}
 
 {% if shared_note.is_locked %}
 <script>
@@ -316,12 +323,13 @@
     });
 </script>
 {% else %}
-<script>
-    // For non-encrypted notes, render content client-side
+    {% if shared_note.note_type != 'canvas' %}
+    <script>
+    // For non-encrypted, non-canvas notes, render content client-side
     document.addEventListener('DOMContentLoaded', function() {
         const noteContent = document.getElementById('noteContent');
         const content = `{{ shared_note.content|escapejs }}`;
-        
+
         if (noteContent && window.markdownRenderer && typeof marked !== 'undefined') {
             try {
                 noteContent.innerHTML = window.markdownRenderer.render(content, true);
@@ -329,20 +337,22 @@
                 console.error('Failed to render shared note:', error);
                 noteContent.innerHTML = '<pre>' + content + '</pre>';
             }
-            
+
             // Initialize checkbox handlers for shared notes
             if (window.checkboxHandler) {
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
                 window.checkboxHandler.init({
                     content: content,
                     noteId: {{ shared_note.pk }},
                     noteType: 'shared',
                     isEncrypted: false,
                     updateUrl: `/shared-notes/{{ shared_note.pk }}/edit/`,
-                    csrfToken: document.querySelector('[name=csrfmiddlewaretoken]').value
+                    csrfToken: csrfInput ? csrfInput.value : ''
                 });
             }
         }
     });
-</script>
+    </script>
+    {% endif %}
 {% endif %}
 {% endblock %}

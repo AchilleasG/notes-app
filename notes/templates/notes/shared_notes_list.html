@@ -473,6 +473,7 @@
                 <div class="note-card {% if note.is_locked %}locked{% endif %}" onclick="window.location='{% url 'shared_note_view' note.id %}'">
                     <h3>
                         {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
+                        {% if note.note_type == 'canvas' %}<span class="canvas-badge">🖼️</span>{% endif %}
                         <span>{{ note.title }}</span>
                     </h3>
                     {% if note.is_locked %}

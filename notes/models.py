@@ -37,21 +37,27 @@ class Tag(models.Model):
 class Folder(models.Model):
     """Folder model for organizing personal notes"""
 
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="folders")
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="folders"
+    )
     name = models.CharField(max_length=100)
     parent = models.ForeignKey(
-        "self", 
-        on_delete=models.CASCADE, 
-        null=True, 
-        blank=True, 
-        related_name="subfolders"
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subfolders",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
-        unique_together = ["user", "name", "parent"]  # Unique folder names within same parent
+        unique_together = [
+            "user",
+            "name",
+            "parent",
+        ]  # Unique folder names within same parent
 
     def __str__(self):
         if self.parent:
@@ -69,20 +75,24 @@ class Folder(models.Model):
 
 
 class Note(models.Model):
+    NOTE_TYPE_CHOICES = [
+        ("markdown", "Markdown Note"),
+        ("canvas", "Canvas Note"),
+    ]
+
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="notes")
     title = models.CharField(max_length=200)
     content = models.TextField()  # This will store encrypted content from client
+    note_type = models.CharField(
+        max_length=20, choices=NOTE_TYPE_CHOICES, default="markdown"
+    )
     is_locked = models.BooleanField(default=False)
     salt = models.CharField(
         max_length=100, blank=True
     )  # Store salt for client-side encryption
     tags = models.ManyToManyField(Tag, related_name="notes", blank=True)
     folder = models.ForeignKey(
-        Folder,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="notes"
+        Folder, on_delete=models.SET_NULL, null=True, blank=True, related_name="notes"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -99,6 +109,7 @@ class Note(models.Model):
             "id": self.pk,
             "title": self.title,
             "content": self.content,  # Encrypted content
+            "note_type": self.note_type,
             "is_locked": self.is_locked,
             "salt": self.salt,
             "tags": [
@@ -220,7 +231,7 @@ class SharedFolder(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="subfolders"
+        related_name="subfolders",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -252,6 +263,11 @@ class SharedFolder(models.Model):
 class SharedNote(models.Model):
     """A note shared between two friends"""
 
+    NOTE_TYPE_CHOICES = [
+        ("markdown", "Markdown Note"),
+        ("canvas", "Canvas Note"),
+    ]
+
     user1 = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="shared_notes_1"
     )
@@ -260,6 +276,9 @@ class SharedNote(models.Model):
     )
     title = models.CharField(max_length=200)
     content = models.TextField()  # This will store encrypted content from client
+    note_type = models.CharField(
+        max_length=20, choices=NOTE_TYPE_CHOICES, default="markdown"
+    )
     is_locked = models.BooleanField(default=False)
     salt = models.CharField(max_length=100, blank=True)
     tags = models.ManyToManyField(Tag, related_name="shared_notes", blank=True)
@@ -268,7 +287,7 @@ class SharedNote(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="notes"
+        related_name="notes",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -291,6 +310,7 @@ class SharedNote(models.Model):
             "id": self.pk,
             "title": self.title,
             "content": self.content,  # Encrypted content
+            "note_type": self.note_type,
             "is_locked": self.is_locked,
             "salt": self.salt,
             "tags": [
@@ -326,3 +346,105 @@ class ChatMessage(models.Model):
         return (
             f"{self.from_user.username} -> {self.to_user.username}: {self.message[:50]}"
         )
+
+
+class CanvasElement(models.Model):
+    """An element (textbox, image, shape, or drawing) in a canvas note"""
+
+    ELEMENT_TYPE_CHOICES = [
+        ("textbox", "Text Box"),
+        ("image", "Image"),
+        ("rectangle", "Rectangle"),
+        ("circle", "Circle"),
+        ("line", "Line"),
+        ("freehand", "Freehand Drawing"),
+    ]
+
+    # For personal notes
+    note = models.ForeignKey(
+        Note,
+        on_delete=models.CASCADE,
+        related_name="canvas_elements",
+        null=True,
+        blank=True,
+    )
+
+    # For shared notes
+    shared_note = models.ForeignKey(
+        SharedNote,
+        on_delete=models.CASCADE,
+        related_name="canvas_elements",
+        null=True,
+        blank=True,
+    )
+
+    element_type = models.CharField(max_length=20, choices=ELEMENT_TYPE_CHOICES)
+
+    # Position on canvas
+    x = models.IntegerField(default=0)
+    y = models.IntegerField(default=0)
+
+    # Size
+    width = models.IntegerField(default=200)
+    height = models.IntegerField(default=100)
+
+    # For textbox elements
+    text_content = models.TextField(blank=True, default="")
+
+    # For image elements
+    image = models.ImageField(upload_to="canvas_images/", blank=True, null=True)
+
+    # For shape elements (rectangle, circle, line) - store styling
+    stroke_color = models.CharField(max_length=7, default="#000000")  # Hex color
+    fill_color = models.CharField(max_length=7, default="#ffffff")  # Hex color
+    stroke_width = models.IntegerField(default=2)
+
+    # For freehand drawing - store path data as JSON
+    path_data = models.TextField(blank=True, default="")  # JSON array of points
+
+    # Z-index for layering
+    z_index = models.IntegerField(default=0)
+    # Soft-delete flag: mark elements as deleted instead of removing rows so undo is possible
+    deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["z_index", "created_at"]
+
+    def __str__(self):
+        note_title = (
+            self.note.title
+            if self.note
+            else (self.shared_note.title if self.shared_note else "No note")
+        )
+        return f"{self.element_type} in {note_title}"
+
+    def to_dict(self):
+        """Serialize element to dictionary"""
+        data = {
+            "id": self.id,
+            "element_type": self.element_type,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+            "z_index": self.z_index,
+        }
+
+        if self.element_type == "textbox":
+            data["text_content"] = self.text_content
+        elif self.element_type == "image" and self.image:
+            data["image_url"] = self.image.url
+        elif self.element_type in ["rectangle", "circle", "line"]:
+            data["stroke_color"] = self.stroke_color
+            data["fill_color"] = self.fill_color
+            data["stroke_width"] = self.stroke_width
+        elif self.element_type == "freehand":
+            data["stroke_color"] = self.stroke_color
+            data["stroke_width"] = self.stroke_width
+            data["path_data"] = self.path_data
+
+        return data

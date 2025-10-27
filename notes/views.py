@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
 from .models import (
@@ -25,11 +25,11 @@ def note_list(request):
 
     # Filter by tags if specified
     tag_filter = request.GET.get("tags", "").strip()
-    
+
     # Filter by folder if specified (but not when searching by tags)
     folder_id = request.GET.get("folder")
     current_folder = None
-    
+
     if tag_filter:
         # When searching by tags, show results from ALL folders
         # Split by comma and filter (case-insensitive)
@@ -57,21 +57,32 @@ def note_list(request):
 
     # Get all folders for the sidebar
     folders = Folder.objects.filter(user=request.user)
-    
+
     # Get subfolders for the current folder if viewing a specific folder
     # For Home view (no current folder), show root-level folders
     subfolders = []
     if current_folder:
-        subfolders = Folder.objects.filter(user=request.user, parent=current_folder).order_by('name')
+        subfolders = Folder.objects.filter(
+            user=request.user, parent=current_folder
+        ).order_by("name")
     elif folder_id != "all":  # Home view - show root folders
-        subfolders = Folder.objects.filter(user=request.user, parent__isnull=True).order_by('name')
-    
+        subfolders = Folder.objects.filter(
+            user=request.user, parent__isnull=True
+        ).order_by("name")
+
     # Serialize folders for JavaScript
     import json
-    folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in folders
-    ])
+
+    folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in folders
+        ]
+    )
 
     return render(
         request,
@@ -99,17 +110,29 @@ def note_create(request):
         image = request.FILES.get("image")
         tags_data = request.POST.get("tags", "")
         folder_id = request.POST.get("folder")
+        note_type = request.POST.get("note_type", "markdown")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
 
-        if title and final_content:
+        # Canvas notes cannot be encrypted
+        if note_type == "canvas" and is_locked:
+            messages.error(request, "Canvas notes cannot be encrypted.")
+            return redirect("note_create")
+
+        if title:
+            # For canvas notes, content is not required initially
+            if not final_content and note_type != "canvas":
+                messages.error(request, "Content is required.")
+                return redirect("note_create")
+
             note = Note(
                 user=request.user,
                 title=title,
-                content=final_content,
-                is_locked=is_locked,
-                salt=salt,
+                content=final_content or "",
+                note_type=note_type,
+                is_locked=is_locked if note_type != "canvas" else False,
+                salt=salt if note_type != "canvas" else "",
             )
 
             # Assign folder if specified
@@ -120,7 +143,7 @@ def note_create(request):
                 except Folder.DoesNotExist:
                     pass
 
-            # Handle image upload
+            # Handle image upload (legacy)
             if image:
                 import os
                 from django.conf import settings
@@ -137,8 +160,8 @@ def note_create(request):
 
             note.save()
 
-            # Process tags
-            if tags_data:
+            # Process tags (only for markdown notes)
+            if note_type == "markdown" and tags_data:
                 import json
 
                 try:
@@ -165,9 +188,9 @@ def note_create(request):
                     pass
 
             messages.success(request, "Note created successfully!")
-            return redirect("note_list")
+            return redirect("note_view", pk=note.pk)
         else:
-            messages.error(request, "Title and content are required.")
+            messages.error(request, "Title is required.")
 
     # Get all user tags for autocomplete
     user_tags = Tag.objects.filter(user=request.user)
@@ -181,14 +204,21 @@ def note_create(request):
             current_folder = Folder.objects.get(id=current_folder_id, user=request.user)
         except Folder.DoesNotExist:
             pass
-    
+
     # Serialize folders for JavaScript
     import json
-    folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in folders
-    ])
-    
+
+    folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in folders
+        ]
+    )
+
     return render(
         request,
         "notes/note_form.html",
@@ -254,7 +284,7 @@ def note_edit(request, pk):
             note.content = final_content
             note.is_locked = is_locked
             note.salt = salt
-            
+
             # Update folder if specified (only for non-AJAX updates)
             if not is_ajax_update:
                 if folder_id:
@@ -265,7 +295,7 @@ def note_edit(request, pk):
                         note.folder = None
                 elif folder_id == "":  # Empty string means remove folder
                     note.folder = None
-            
+
             note.save()
 
             # Check if this is an AJAX request for checkbox update
@@ -308,14 +338,21 @@ def note_edit(request, pk):
     # Return note data for editing (client will handle decryption if needed)
     user_tags = Tag.objects.filter(user=request.user)
     folders = Folder.objects.filter(user=request.user)
-    
+
     # Serialize folders for JavaScript
     import json
-    folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in folders
-    ])
-    
+
+    folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in folders
+        ]
+    )
+
     return render(
         request,
         "notes/note_form.html",
@@ -381,6 +418,16 @@ def note_view(request, pk):
     # Get all notes for the sidebar
     all_notes = Note.objects.filter(user=request.user).order_by("-updated_at")
 
+    # For canvas notes, get elements as JSON
+    elements_json = "[]"
+    if note.note_type == "canvas":
+        import json
+        from .models import CanvasElement
+
+        # Exclude soft-deleted elements
+        elements = CanvasElement.objects.filter(note=note, deleted=False)
+        elements_json = json.dumps([element.to_dict() for element in elements])
+
     # Pass note data to client (client will handle decryption if needed)
     return render(
         request,
@@ -388,6 +435,7 @@ def note_view(request, pk):
         {
             "note": note,
             "all_notes": all_notes,
+            "elements_json": elements_json,
         },
     )
 
@@ -684,27 +732,34 @@ def shared_notes_list(request, friend_id):
     shared_folders = SharedFolder.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
-    
+
     # Get subfolders for the current folder if viewing a specific folder
     # For Home view (no current folder), show root-level folders
     subfolders = []
     if current_folder:
         subfolders = SharedFolder.objects.filter(
             Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user),
-            parent=current_folder
-        ).order_by('name')
+            parent=current_folder,
+        ).order_by("name")
     elif folder_id != "all":  # Home view - show root folders
         subfolders = SharedFolder.objects.filter(
             Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user),
-            parent__isnull=True
-        ).order_by('name')
-    
+            parent__isnull=True,
+        ).order_by("name")
+
     # Serialize folders for JavaScript
     import json
-    shared_folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in shared_folders
-    ])
+
+    shared_folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in shared_folders
+        ]
+    )
 
     return render(
         request,
@@ -738,11 +793,22 @@ def shared_note_create(request, friend_id):
         salt = request.POST.get("salt", "")
         tags_data = request.POST.get("tags", "")
         folder_id = request.POST.get("folder")
+        note_type = request.POST.get("note_type", "markdown")
 
         # Use encrypted content if provided, otherwise use regular content
         final_content = encrypted_content if encrypted_content else content
 
-        if title and final_content:
+        # Canvas notes cannot be encrypted
+        if note_type == "canvas" and is_locked:
+            messages.error(request, "Canvas notes cannot be encrypted.")
+            return redirect("shared_note_create", friend_id=friend_id)
+
+        if title:
+            # For canvas notes, content is not required initially
+            if not final_content and note_type != "canvas":
+                messages.error(request, "Content is required.")
+                return redirect("shared_note_create", friend_id=friend_id)
+
             # Ensure consistent user ordering
             user1, user2 = sorted([request.user, friend], key=lambda u: u.id)
 
@@ -750,9 +816,10 @@ def shared_note_create(request, friend_id):
                 user1=user1,
                 user2=user2,
                 title=title,
-                content=final_content,
-                is_locked=is_locked,
-                salt=salt,
+                content=final_content or "",
+                note_type=note_type,
+                is_locked=is_locked if note_type != "canvas" else False,
+                salt=salt if note_type != "canvas" else "",
                 created_by=request.user,
             )
 
@@ -767,8 +834,8 @@ def shared_note_create(request, friend_id):
 
             shared_note.save()
 
-            # Process tags
-            if tags_data:
+            # Process tags (only for markdown notes)
+            if note_type == "markdown" and tags_data:
                 import json
 
                 try:
@@ -796,9 +863,9 @@ def shared_note_create(request, friend_id):
                     pass
 
             messages.success(request, "Shared note created successfully!")
-            return redirect("shared_notes_list", friend_id=friend_id)
+            return redirect("shared_note_view", note_id=shared_note.id)
         else:
-            messages.error(request, "Title and content are required.")
+            messages.error(request, "Title is required.")
 
     # Get tags that are used in shared notes with this friend
     user_tags = Tag.objects.filter(
@@ -826,10 +893,17 @@ def shared_note_create(request, friend_id):
 
     # Serialize folders for JavaScript
     import json
-    shared_folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in shared_folders
-    ])
+
+    shared_folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in shared_folders
+        ]
+    )
 
     return render(
         request,
@@ -861,10 +935,26 @@ def shared_note_view(request, note_id):
     all_notes = SharedNote.objects.filter(
         Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     ).order_by("-updated_at")
+
+    # For canvas notes, get elements as JSON
+    elements_json = "[]"
+    if shared_note.note_type == "canvas":
+        import json
+        from .models import CanvasElement
+
+        # Exclude soft-deleted elements
+        elements = CanvasElement.objects.filter(shared_note=shared_note, deleted=False)
+        elements_json = json.dumps([element.to_dict() for element in elements])
+
     return render(
         request,
         "notes/shared_note_view.html",
-        {"shared_note": shared_note, "all_notes": all_notes, "friend": friend},
+        {
+            "shared_note": shared_note,
+            "all_notes": all_notes,
+            "friend": friend,
+            "elements_json": elements_json,
+        },
     )
 
 
@@ -970,10 +1060,17 @@ def shared_note_edit(request, note_id):
 
     # Serialize folders for JavaScript
     import json
-    shared_folders_json = json.dumps([
-        {"id": folder.id, "name": folder.name, "parent_id": folder.parent.id if folder.parent else None}
-        for folder in shared_folders
-    ])
+
+    shared_folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in shared_folders
+        ]
+    )
 
     return render(
         request,
@@ -1036,21 +1133,27 @@ def folder_create(request):
             try:
                 parent = Folder.objects.get(id=parent_id, user=request.user)
             except Folder.DoesNotExist:
-                return JsonResponse({"success": False, "error": "Parent folder not found"})
+                return JsonResponse(
+                    {"success": False, "error": "Parent folder not found"}
+                )
 
         # Check if folder with same name already exists in parent
         if Folder.objects.filter(user=request.user, name=name, parent=parent).exists():
-            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+            return JsonResponse(
+                {"success": False, "error": "A folder with this name already exists"}
+            )
 
         folder = Folder.objects.create(user=request.user, name=name, parent=parent)
-        return JsonResponse({
-            "success": True,
-            "folder": {
-                "id": folder.id,
-                "name": folder.name,
-                "parent_id": folder.parent.id if folder.parent else None,
+        return JsonResponse(
+            {
+                "success": True,
+                "folder": {
+                    "id": folder.id,
+                    "name": folder.name,
+                    "parent_id": folder.parent.id if folder.parent else None,
+                },
             }
-        })
+        )
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1067,14 +1170,22 @@ def folder_rename(request, folder_id):
             return JsonResponse({"success": False, "error": "Folder name is required"})
 
         # Check if folder with same name already exists in parent
-        if Folder.objects.filter(
-            user=request.user, name=new_name, parent=folder.parent
-        ).exclude(id=folder.id).exists():
-            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+        if (
+            Folder.objects.filter(
+                user=request.user, name=new_name, parent=folder.parent
+            )
+            .exclude(id=folder.id)
+            .exists()
+        ):
+            return JsonResponse(
+                {"success": False, "error": "A folder with this name already exists"}
+            )
 
         folder.name = new_name
         folder.save()
-        return JsonResponse({"success": True, "folder": {"id": folder.id, "name": folder.name}})
+        return JsonResponse(
+            {"success": True, "folder": {"id": folder.id, "name": folder.name}}
+        )
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1087,10 +1198,10 @@ def folder_delete(request, folder_id):
     if request.method == "POST":
         # Move all notes to parent folder (or None if root folder)
         Note.objects.filter(folder=folder).update(folder=folder.parent)
-        
+
         # Move all subfolders to parent folder (or None if root folder)
         Folder.objects.filter(parent=folder).update(parent=folder.parent)
-        
+
         folder.delete()
         messages.success(request, f"Folder '{folder.name}' deleted successfully!")
         return redirect("note_list")
@@ -1130,7 +1241,12 @@ def shared_folder_create(request, friend_id):
     friend = get_object_or_404(CustomUser, id=friend_id)
 
     if not Friendship.are_friends(request.user, friend):
-        return JsonResponse({"success": False, "error": "You can only create shared folders with friends"})
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "You can only create shared folders with friends",
+            }
+        )
 
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -1144,9 +1260,13 @@ def shared_folder_create(request, friend_id):
             try:
                 parent = SharedFolder.objects.get(id=parent_id)
                 if not parent.has_access(request.user):
-                    return JsonResponse({"success": False, "error": "Access denied to parent folder"})
+                    return JsonResponse(
+                        {"success": False, "error": "Access denied to parent folder"}
+                    )
             except SharedFolder.DoesNotExist:
-                return JsonResponse({"success": False, "error": "Parent folder not found"})
+                return JsonResponse(
+                    {"success": False, "error": "Parent folder not found"}
+                )
 
         # Ensure consistent user ordering
         user1, user2 = sorted([request.user, friend], key=lambda u: u.id)
@@ -1155,19 +1275,23 @@ def shared_folder_create(request, friend_id):
         if SharedFolder.objects.filter(
             user1=user1, user2=user2, name=name, parent=parent
         ).exists():
-            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+            return JsonResponse(
+                {"success": False, "error": "A folder with this name already exists"}
+            )
 
         folder = SharedFolder.objects.create(
             user1=user1, user2=user2, name=name, parent=parent
         )
-        return JsonResponse({
-            "success": True,
-            "folder": {
-                "id": folder.id,
-                "name": folder.name,
-                "parent_id": folder.parent.id if folder.parent else None,
+        return JsonResponse(
+            {
+                "success": True,
+                "folder": {
+                    "id": folder.id,
+                    "name": folder.name,
+                    "parent_id": folder.parent.id if folder.parent else None,
+                },
             }
-        })
+        )
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1187,14 +1311,25 @@ def shared_folder_rename(request, folder_id):
             return JsonResponse({"success": False, "error": "Folder name is required"})
 
         # Check if folder with same name already exists in parent
-        if SharedFolder.objects.filter(
-            user1=folder.user1, user2=folder.user2, name=new_name, parent=folder.parent
-        ).exclude(id=folder.id).exists():
-            return JsonResponse({"success": False, "error": "A folder with this name already exists"})
+        if (
+            SharedFolder.objects.filter(
+                user1=folder.user1,
+                user2=folder.user2,
+                name=new_name,
+                parent=folder.parent,
+            )
+            .exclude(id=folder.id)
+            .exists()
+        ):
+            return JsonResponse(
+                {"success": False, "error": "A folder with this name already exists"}
+            )
 
         folder.name = new_name
         folder.save()
-        return JsonResponse({"success": True, "folder": {"id": folder.id, "name": folder.name}})
+        return JsonResponse(
+            {"success": True, "folder": {"id": folder.id, "name": folder.name}}
+        )
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
@@ -1213,10 +1348,10 @@ def shared_folder_delete(request, folder_id):
     if request.method == "POST":
         # Move all notes to parent folder (or None if root folder)
         SharedNote.objects.filter(folder=folder).update(folder=folder.parent)
-        
+
         # Move all subfolders to parent folder (or None if root folder)
         SharedFolder.objects.filter(parent=folder).update(parent=folder.parent)
-        
+
         folder.delete()
         messages.success(request, f"Folder '{folder.name}' deleted successfully!")
         return redirect("shared_notes_list", friend_id=friend.id)
@@ -1243,7 +1378,9 @@ def shared_note_move(request, note_id):
             try:
                 folder = SharedFolder.objects.get(id=folder_id)
                 if not folder.has_access(request.user):
-                    return JsonResponse({"success": False, "error": "Access denied to folder"})
+                    return JsonResponse(
+                        {"success": False, "error": "Access denied to folder"}
+                    )
                 shared_note.folder = folder
             except SharedFolder.DoesNotExist:
                 return JsonResponse({"success": False, "error": "Folder not found"})
@@ -1252,5 +1389,422 @@ def shared_note_move(request, note_id):
 
         shared_note.save()
         return JsonResponse({"success": True})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+# Canvas element management views
+
+
+@login_required
+def canvas_element_create(request):
+    """Create a new canvas element"""
+    if request.method == "POST":
+        import json
+        from .models import CanvasElement
+
+        try:
+            data = json.loads(request.body)
+
+            element_type = data.get("element_type")
+            note_id = data.get("note_id")
+            shared_note_id = data.get("shared_note_id")
+
+            # Validate element type (support shapes and freehand)
+            valid_types = [
+                "textbox",
+                "image",
+                "rectangle",
+                "circle",
+                "line",
+                "freehand",
+            ]
+            if element_type not in valid_types:
+                return JsonResponse({"success": False, "error": "Invalid element type"})
+
+            # Create the element
+            element = CanvasElement(
+                element_type=element_type,
+                x=data.get("x", 0),
+                y=data.get("y", 0),
+                width=data.get("width", 200),
+                height=data.get("height", 100),
+                z_index=data.get("z_index", 0),
+            )
+
+            # Populate type-specific fields
+            if element_type == "textbox":
+                element.text_content = data.get("text_content", "")
+            elif element_type in ["rectangle", "circle", "line"]:
+                # Shapes: accept stroke/fill/stroke_width
+                def _sanitize_color(val):
+                    """Accept either hex colors or an abstract color name from the palette."""
+                    if not val:
+                        return ""
+                    val = str(val)
+                    if val.lower() == "transparent":
+                        return ""
+                    allowed_names = {
+                        "default",
+                        "red",
+                        "green",
+                        "blue",
+                        "yellow",
+                        "purple",
+                    }
+                    # If it's an allowed abstract name, store it as-is
+                    if val in allowed_names:
+                        return val
+                    # Accept hex colors like #fff or #ffffff; truncate to 7 chars if longer
+                    if val.startswith("#"):
+                        return val[:7]
+                    # Fallback to default hex
+                    return "#000000"
+
+                element.stroke_color = _sanitize_color(
+                    data.get("stroke_color", "#000000")
+                )
+                element.fill_color = _sanitize_color(data.get("fill_color", ""))
+                try:
+                    element.stroke_width = int(data.get("stroke_width", 2))
+                except (TypeError, ValueError):
+                    element.stroke_width = 2
+            elif element_type == "freehand":
+                # Freehand drawing: store path data as JSON/string
+                element.path_data = data.get("path_data", "")
+
+                # Accept stroke color and width for freehand strokes as well
+                def _sanitize_color_freehand(val):
+                    if not val:
+                        return ""
+                    val = str(val)
+                    if val.lower() == "transparent":
+                        return ""
+                    allowed_names = {
+                        "default",
+                        "red",
+                        "green",
+                        "blue",
+                        "yellow",
+                        "purple",
+                    }
+                    if val in allowed_names:
+                        return val
+                    if val.startswith("#"):
+                        return val[:7]
+                    return "#000000"
+
+                element.stroke_color = _sanitize_color_freehand(
+                    data.get("stroke_color", "#000000")
+                )
+                try:
+                    element.stroke_width = int(data.get("stroke_width", 2))
+                except (TypeError, ValueError):
+                    element.stroke_width = 2
+
+            # Associate with note or shared note
+            if note_id:
+                try:
+                    note = Note.objects.get(id=note_id, user=request.user)
+                    if note.note_type != "canvas":
+                        return JsonResponse(
+                            {"success": False, "error": "Note is not a canvas note"}
+                        )
+                    element.note = note
+                except Note.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Note not found"})
+            elif shared_note_id:
+                try:
+                    shared_note = SharedNote.objects.get(id=shared_note_id)
+                    if not shared_note.has_access(request.user):
+                        return JsonResponse(
+                            {"success": False, "error": "Access denied"}
+                        )
+                    if shared_note.note_type != "canvas":
+                        return JsonResponse(
+                            {
+                                "success": False,
+                                "error": "Shared note is not a canvas note",
+                            }
+                        )
+                    element.shared_note = shared_note
+                except SharedNote.DoesNotExist:
+                    return JsonResponse(
+                        {"success": False, "error": "Shared note not found"}
+                    )
+            else:
+                return JsonResponse(
+                    {"success": False, "error": "Note or shared note ID required"}
+                )
+
+            element.save()
+
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to create element"})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_update(request, element_id):
+    """Update a canvas element"""
+    if request.method == "POST":
+        import json
+        from .models import CanvasElement
+
+        try:
+            element = get_object_or_404(CanvasElement, id=element_id)
+
+            # Verify access
+            if element.note:
+                if element.note.user != request.user:
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            elif element.shared_note:
+                if not element.shared_note.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied"})
+
+            data = json.loads(request.body)
+
+            # Update position and size
+            if "x" in data:
+                element.x = data["x"]
+            if "y" in data:
+                element.y = data["y"]
+            if "width" in data:
+                element.width = data["width"]
+            if "height" in data:
+                element.height = data["height"]
+            if "z_index" in data:
+                element.z_index = data["z_index"]
+
+            # Update content for textbox
+            if element.element_type == "textbox" and "text_content" in data:
+                element.text_content = data["text_content"]
+
+            # Update styling for shapes/freehand
+            if element.element_type in ["rectangle", "circle", "line", "freehand"]:
+
+                def _sanitize_color(val):
+                    if not val:
+                        return ""
+                    val = str(val)
+                    if val.lower() == "transparent":
+                        return ""
+                    allowed_names = {
+                        "default",
+                        "red",
+                        "green",
+                        "blue",
+                        "yellow",
+                        "purple",
+                    }
+                    if val in allowed_names:
+                        return val
+                    if val.startswith("#"):
+                        return val[:7]
+                    return "#000000"
+
+                if "stroke_color" in data:
+                    element.stroke_color = _sanitize_color(data.get("stroke_color"))
+                if "fill_color" in data:
+                    element.fill_color = _sanitize_color(data.get("fill_color"))
+                if "stroke_width" in data:
+                    try:
+                        element.stroke_width = int(data.get("stroke_width"))
+                    except (TypeError, ValueError):
+                        pass
+
+            element.save()
+
+            # Update the parent note's updated_at timestamp
+            if element.note:
+                element.note.save()
+            elif element.shared_note:
+                element.shared_note.save()
+
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error updating canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to update element"})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_delete(request, element_id):
+    """Delete a canvas element"""
+    if request.method == "POST":
+        from .models import CanvasElement
+
+        try:
+            element = get_object_or_404(CanvasElement, id=element_id)
+
+            # Verify access
+            if element.note:
+                if element.note.user != request.user:
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            elif element.shared_note:
+                if not element.shared_note.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied"})
+
+            # Soft-delete: mark element as deleted so undo can restore it
+            from django.utils import timezone
+
+            element.deleted = True
+            element.deleted_at = timezone.now()
+            element.save()
+
+            # Update the parent note's updated_at timestamp
+            if element.note:
+                element.note.save()
+            elif element.shared_note:
+                element.shared_note.save()
+
+            return JsonResponse({"success": True})
+        except Http404:
+            return JsonResponse({"success": True, "error": "Element not found"})
+        except CanvasElement.DoesNotExist:
+            return JsonResponse({"success": True, "error": "Element not found"})
+        except Exception as e:
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error deleting canvas element: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to delete element"})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_undelete(request, element_id):
+    """Restore a soft-deleted canvas element (used by undo)"""
+    if request.method == "POST":
+        from .models import CanvasElement
+
+        try:
+            element = get_object_or_404(CanvasElement, id=element_id)
+
+            # Verify access
+            if element.note:
+                if element.note.user != request.user:
+                    return JsonResponse({"success": False, "error": "Access denied"})
+            elif element.shared_note:
+                if not element.shared_note.has_access(request.user):
+                    return JsonResponse({"success": False, "error": "Access denied"})
+
+            # Only undelete if it was previously soft-deleted
+            if not element.deleted:
+                return JsonResponse(
+                    {"success": False, "error": "Element is not deleted"}
+                )
+
+            element.deleted = False
+            element.deleted_at = None
+            element.save()
+
+            # Update parent note timestamp
+            if element.note:
+                element.note.save()
+            elif element.shared_note:
+                element.shared_note.save()
+
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Http404:
+            return JsonResponse({"success": False, "error": "Element not found"})
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error undeleting canvas element: {str(e)}", exc_info=True)
+            return JsonResponse(
+                {"success": False, "error": "Failed to undelete element"}
+            )
+
+    return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def canvas_element_upload_image(request):
+    """Upload an image for a canvas element"""
+    if request.method == "POST":
+        from .models import CanvasElement
+
+        try:
+            note_id = request.POST.get("note_id")
+            shared_note_id = request.POST.get("shared_note_id")
+            image_file = request.FILES.get("image")
+
+            if not image_file:
+                return JsonResponse(
+                    {"success": False, "error": "No image file provided"}
+                )
+
+            # Create the image element
+            element = CanvasElement(
+                element_type="image",
+                x=int(request.POST.get("x", 0)),
+                y=int(request.POST.get("y", 0)),
+                width=int(request.POST.get("width", 200)),
+                height=int(request.POST.get("height", 200)),
+                z_index=int(request.POST.get("z_index", 0)),
+                image=image_file,
+            )
+
+            # Associate with note or shared note
+            if note_id:
+                try:
+                    note = Note.objects.get(id=note_id, user=request.user)
+                    if note.note_type != "canvas":
+                        return JsonResponse(
+                            {"success": False, "error": "Note is not a canvas note"}
+                        )
+                    element.note = note
+                except Note.DoesNotExist:
+                    return JsonResponse({"success": False, "error": "Note not found"})
+            elif shared_note_id:
+                try:
+                    shared_note = SharedNote.objects.get(id=shared_note_id)
+                    if not shared_note.has_access(request.user):
+                        return JsonResponse(
+                            {"success": False, "error": "Access denied"}
+                        )
+                    if shared_note.note_type != "canvas":
+                        return JsonResponse(
+                            {
+                                "success": False,
+                                "error": "Shared note is not a canvas note",
+                            }
+                        )
+                    element.shared_note = shared_note
+                except SharedNote.DoesNotExist:
+                    return JsonResponse(
+                        {"success": False, "error": "Shared note not found"}
+                    )
+            else:
+                return JsonResponse(
+                    {"success": False, "error": "Note or shared note ID required"}
+                )
+
+            element.save()
+
+            return JsonResponse({"success": True, "element": element.to_dict()})
+        except Exception as e:
+            # Log the error for debugging but don't expose stack trace to user
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error uploading image: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": "Failed to upload image"})
 
     return JsonResponse({"success": False, "error": "Invalid request method"})

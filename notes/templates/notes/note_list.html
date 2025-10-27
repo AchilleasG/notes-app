@@ -612,7 +612,11 @@
                     {% if note.is_locked %}
                         <p class="locked-message">🔐 Encrypted note - click to unlock</p>
                     {% else %}
-                        <div class="note-preview" data-markdown="{{ note.content|escapejs }}" data-preview="true"></div>
+                        {% if note.note_type == 'canvas' %}
+                            <div class="note-preview">🖼️ Canvas note — open to view/edit the canvas</div>
+                        {% else %}
+                            <div class="note-preview" data-markdown="{{ note.content|escapejs }}" data-preview="true"></div>
+                        {% endif %}
                     {% endif %}
                     {% if note.tags.all %}
                         <div class="note-tags" onclick="event.stopPropagation()">

@@ -1,0 +1,452 @@
+/* Canvas Editor Styles */
+
+.canvas-editor {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.canvas-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    flex-wrap: wrap;
+}
+
+.btn-canvas {
+    padding: 8px 16px;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+}
+
+.btn-canvas:hover {
+    background: var(--border-secondary);
+    transform: translateY(-1px);
+}
+
+.btn-canvas:active {
+    transform: translateY(0);
+}
+
+.btn-canvas-primary {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.btn-canvas-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* .btn-canvas-secondary uses default .btn-canvas styles; no overrides needed */
+
+.btn-canvas-active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.btn-canvas-active:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btn-canvas-danger {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.btn-canvas-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* Shapes picker toggle should visually match other toolbar buttons */
+.canvas-shapes-toggle {
+    /* Override any inline styles applied by JS to match .btn-canvas */
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+.canvas-shapes-toggle span:first-child {
+    font-size: 16px;
+}
+
+/* Panel styling for shapes picker to match color/stroke panels */
+.canvas-shapes-panel {
+    padding: 6px !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* When shapes toggle is active, show accent color even if base toggle rules use !important */
+.canvas-shapes-toggle.btn-canvas-active {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.canvas-shapes-toggle.btn-canvas-active:hover {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+}
+
+.canvas-area {
+    position: relative;
+    flex: 1 1 auto;
+    overflow: auto;
+    background: var(--bg-primary);
+    /* Keep the page layout stable: cap the visible canvas area height so zooming
+       scales content inside without expanding the overall page height. */
+    min-height: 300px;
+    max-height: calc(100vh - 220px);
+    contain: layout paint;
+}
+
+.canvas-area.drawing-mode {
+    cursor: crosshair !important;
+}
+
+.canvas-drawing-preview {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* Grid background */
+.canvas-area.show-grid {
+    background-image:
+        repeating-linear-gradient(0deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size)),
+        repeating-linear-gradient(90deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size));
+    background-size: var(--grid-size) var(--grid-size);
+}
+
+/* Allow the grid to be applied to the inner, scaled content so it visually
+   scales with the editor zoom (transform on .canvas-content). */
+.canvas-content.show-grid {
+    background-image:
+        repeating-linear-gradient(0deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size)),
+        repeating-linear-gradient(90deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size));
+    background-size: var(--grid-size) var(--grid-size);
+    background-position: 0 0;
+}
+
+/* Canvas Elements */
+.canvas-element {
+    position: absolute;
+    cursor: move;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+    will-change: transform, left, top, width, height;
+}
+
+.canvas-element:hover {
+    border-color: var(--accent-light);
+}
+
+.canvas-element.selected {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+/* Textbox Element */
+.canvas-textbox {
+    background: var(--bg-secondary);
+    box-shadow: 0 2px 8px var(--shadow-md);
+}
+
+.canvas-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    padding: 12px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.canvas-textarea::placeholder {
+    color: var(--text-tertiary);
+}
+
+/* Image Element */
+.canvas-image {
+    background: var(--bg-secondary);
+    box-shadow: 0 2px 8px var(--shadow-md);
+    /* Allow resize handles to be visible around the image corners */
+    overflow: visible;
+}
+
+.canvas-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+}
+
+/* Shape Elements */
+.canvas-shape {
+    box-sizing: border-box;
+}
+
+.canvas-rectangle {
+    box-shadow: 0 2px 8px var(--shadow-md);
+}
+
+.canvas-circle {
+    box-shadow: 0 2px 8px var(--shadow-md);
+}
+
+.canvas-line {
+    box-shadow: 0 1px 4px var(--shadow-md);
+}
+
+.canvas-freehand {
+    overflow: visible;
+}
+
+/* Resize Handles */
+.resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--accent-primary);
+    border: 2px solid white;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+}
+
+.canvas-element.selected .resize-handle {
+    opacity: 1;
+}
+
+.resize-handle-nw {
+    top: -6px;
+    left: -6px;
+    cursor: nw-resize;
+}
+
+.resize-handle-ne {
+    top: -6px;
+    right: -6px;
+    cursor: ne-resize;
+}
+
+.resize-handle-sw {
+    bottom: -6px;
+    left: -6px;
+    cursor: sw-resize;
+}
+
+.resize-handle-se {
+    bottom: -6px;
+    right: -6px;
+    cursor: se-resize;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .canvas-toolbar {
+        padding: 8px;
+        gap: 6px;
+    }
+
+    .btn-canvas {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .btn-canvas span:first-child {
+        font-size: 16px;
+    }
+
+    .resize-handle {
+        width: 16px;
+        height: 16px;
+    }
+
+    .resize-handle-nw,
+    .resize-handle-ne,
+    .resize-handle-sw,
+    .resize-handle-se {
+        top: auto;
+        left: auto;
+        right: auto;
+        bottom: auto;
+    }
+
+    .resize-handle-nw {
+        top: -8px;
+        left: -8px;
+    }
+
+    .resize-handle-ne {
+        top: -8px;
+        right: -8px;
+    }
+
+    .resize-handle-sw {
+        bottom: -8px;
+        left: -8px;
+    }
+
+    .resize-handle-se {
+        bottom: -8px;
+        right: -8px;
+    }
+
+    .canvas-textarea {
+        font-size: 16px;
+        /* Prevent zoom on iOS */
+    }
+}
+
+/* Touch-friendly adjustments for mobile */
+@media (hover: none) and (pointer: coarse) {
+    .resize-handle {
+        width: 20px;
+        height: 20px;
+    }
+
+    .canvas-element {
+        touch-action: none;
+        /* Disable default touch actions */
+    }
+}
+
+/* Loading state */
+.canvas-editor.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Note type selector in forms */
+.note-type-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+}
+
+.note-type-option {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.note-type-option:hover {
+    border-color: var(--accent-light);
+    background: var(--bg-primary);
+}
+
+.note-type-option.selected {
+    border-color: var(--accent-primary);
+    background: var(--accent-light);
+}
+
+.note-type-option input[type="radio"] {
+    display: none;
+}
+
+.note-type-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.note-type-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 16px;
+}
+
+.note-type-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .note-type-selector {
+        flex-direction: column;
+    }
+
+    .note-type-option {
+        padding: 12px;
+    }
+
+    .note-type-icon {
+        font-size: 28px;
+        margin-bottom: 6px;
+    }
+
+    .note-type-title {
+        font-size: 15px;
+    }
+
+    .note-type-description {
+        font-size: 12px;
+    }
+}

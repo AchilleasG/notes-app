@@ -1,0 +1,112 @@
+{% comment %}
+    Canvas Editor Partial Template
+    Reusable canvas editor component for both personal and shared notes
+    
+    Required context variables:
+    - note_id: ID of the personal note (if personal note)
+    - shared_note_id: ID of the shared note (if shared note)
+    - elements: List of canvas elements (from note.canvas_elements.all() or shared_note.canvas_elements.all())
+    - csrf_token: CSRF token for API calls
+{% endcomment %}
+
+{% load static %}
+
+<link rel="stylesheet" href="{% static 'css/canvas-editor.css' %}">
+
+<div id="canvasEditorContainer" style="min-height: 600px;">
+    <!-- Canvas editor will be initialized here -->
+</div>
+
+<script src="{% static 'js/canvas-editor.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize canvas editor
+    // Respect a persisted user preference for showing the grid across canvas notes.
+    // Stored in localStorage under the key 'canvas.showGrid' as 'true' or 'false'.
+    const persistedGrid = (function(){ try { return localStorage.getItem('canvas.showGrid'); } catch(e){ return null; } })();
+    const initialShowGrid = (persistedGrid === null) ? true : (persistedGrid === 'true');
+
+    const editor = new CanvasEditor('canvasEditorContainer', {
+        {% if note_id %}
+        noteId: {{ note_id }},
+        {% elif shared_note_id %}
+        sharedNoteId: {{ shared_note_id }},
+        {% endif %}
+        csrfToken: '{{ csrf_token }}',
+    readonly: false,
+    showGrid: initialShowGrid,
+        gridSize: 20,
+        onSave: function() {
+            console.log('Canvas saved successfully');
+            // Show a brief success indicator
+            showSaveIndicator();
+        },
+        onError: function(error) {
+            console.error('Canvas error:', error);
+            alert('Error: ' + error);
+        }
+    });
+    
+    // Load existing elements
+    const elements = {{ elements_json|safe }};
+    editor.setElements(elements);
+    
+    function showSaveIndicator() {
+        // Create a subtle save indicator
+        const indicator = document.createElement('div');
+        indicator.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--accent-primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        indicator.textContent = '✓ Saved';
+        document.body.appendChild(indicator);
+        
+        setTimeout(() => {
+            indicator.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                document.body.removeChild(indicator);
+            }, 300);
+        }, 2000);
+    }
+    
+    // Add animations to the page
+    if (!document.querySelector('style#canvas-animations')) {
+        const style = document.createElement('style');
+        style.id = 'canvas-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateY(100px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateY(100px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+});
+</script>
