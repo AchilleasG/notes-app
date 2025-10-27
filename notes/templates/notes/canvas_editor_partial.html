@@ -21,6 +21,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas editor
+    // Respect a persisted user preference for showing the grid across canvas notes.
+    // Stored in localStorage under the key 'canvas.showGrid' as 'true' or 'false'.
+    const persistedGrid = (function(){ try { return localStorage.getItem('canvas.showGrid'); } catch(e){ return null; } })();
+    const initialShowGrid = (persistedGrid === null) ? true : (persistedGrid === 'true');
+
     const editor = new CanvasEditor('canvasEditorContainer', {
         {% if note_id %}
         noteId: {{ note_id }},
@@ -28,8 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
         sharedNoteId: {{ shared_note_id }},
         {% endif %}
         csrfToken: '{{ csrf_token }}',
-        readonly: false,
-        showGrid: true,
+    readonly: false,
+    showGrid: initialShowGrid,
         gridSize: 20,
         onSave: function() {
             console.log('Canvas saved successfully');

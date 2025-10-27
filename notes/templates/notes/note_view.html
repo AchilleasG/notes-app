@@ -488,7 +488,7 @@
             <option value="">Switch to another note...</option>
             {% for n in all_notes %}
                 <option value="{% url 'note_view' n.pk %}" {% if n.pk == note.pk %}selected{% endif %}>
-                    {% if n.is_locked %}🔒 {% endif %}{{ n.title|truncatechars:50 }}
+                    {% if n.is_locked %}🔒 {% endif %}{% if n.note_type == 'canvas' %}🖼️ {% endif %}{{ n.title|truncatechars:50 }}
                 </option>
             {% endfor %}
         </select>
@@ -539,7 +539,9 @@
         </div>
         
         <div class="note-actions">
-            <a href="{% url 'note_history' note.pk %}" class="btn btn-secondary">📜 History</a>
+            {% if note.note_type != 'canvas' %}
+                <a href="{% url 'note_history' note.pk %}" class="btn btn-secondary">📜 History</a>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -550,7 +552,7 @@
     {% for n in all_notes %}
         <a href="{% url 'note_view' n.pk %}" class="sidebar-note-link {% if n.pk == note.pk %}active{% endif %}">
             <div class="sidebar-note-title">
-                {% if n.is_locked %}🔒 {% endif %}{{ n.title|truncatechars:40 }}
+                {% if n.is_locked %}🔒 {% endif %}{% if n.note_type == 'canvas' %}🖼️ {% endif %}{{ n.title|truncatechars:40 }}
             </div>
             <div class="sidebar-note-date">{{ n.updated_at|date:"M d, Y" }}</div>
         </a>
@@ -561,9 +563,9 @@
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <!-- Toggle Button -->
-<button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
+{% comment %} <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle sidebar">
     ☰
-</button>
+</button> {% endcomment %}
 
 <!-- Password Modal -->
 <div id="passwordModal" class="password-modal hidden">

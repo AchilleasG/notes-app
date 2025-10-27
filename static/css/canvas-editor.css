@@ -79,12 +79,55 @@
     border-color: #b91c1c;
 }
 
+/* Shapes picker toggle should visually match other toolbar buttons */
+.canvas-shapes-toggle {
+    /* Override any inline styles applied by JS to match .btn-canvas */
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+.canvas-shapes-toggle span:first-child {
+    font-size: 16px;
+}
+
+/* Panel styling for shapes picker to match color/stroke panels */
+.canvas-shapes-panel {
+    padding: 6px !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* When shapes toggle is active, show accent color even if base toggle rules use !important */
+.canvas-shapes-toggle.btn-canvas-active {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    border-color: var(--accent-primary) !important;
+}
+
+.canvas-shapes-toggle.btn-canvas-active:hover {
+    background: var(--accent-hover) !important;
+    border-color: var(--accent-hover) !important;
+}
+
 .canvas-area {
     position: relative;
-    flex: 1;
+    flex: 1 1 auto;
     overflow: auto;
     background: var(--bg-primary);
-    min-height: 500px;
+    /* Keep the page layout stable: cap the visible canvas area height so zooming
+       scales content inside without expanding the overall page height. */
+    min-height: 300px;
+    max-height: calc(100vh - 220px);
     contain: layout paint;
 }
 
@@ -111,6 +154,24 @@
             var(--border-secondary) calc(var(--grid-size) - 1px),
             var(--border-secondary) var(--grid-size));
     background-size: var(--grid-size) var(--grid-size);
+}
+
+/* Allow the grid to be applied to the inner, scaled content so it visually
+   scales with the editor zoom (transform on .canvas-content). */
+.canvas-content.show-grid {
+    background-image:
+        repeating-linear-gradient(0deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size)),
+        repeating-linear-gradient(90deg,
+            transparent,
+            transparent calc(var(--grid-size) - 1px),
+            var(--border-secondary) calc(var(--grid-size) - 1px),
+            var(--border-secondary) var(--grid-size));
+    background-size: var(--grid-size) var(--grid-size);
+    background-position: 0 0;
 }
 
 /* Canvas Elements */

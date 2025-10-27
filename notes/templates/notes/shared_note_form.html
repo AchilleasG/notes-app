@@ -1258,4 +1258,71 @@
 </script>
 
 <script src="{% static 'js/folder-tree-selector.js' %}"></script>
+
+<script>
+    // Toggle UI based on note type (markdown vs canvas) when creating a new shared note
+    (function() {
+        const noteTypeRadios = document.querySelectorAll('input[name="note_type"]');
+        if (!noteTypeRadios || noteTypeRadios.length === 0) return; // Editing existing note – no selector
+
+        const contentGroup = document.getElementById('contentGroup');
+        const markdownToolbar = document.getElementById('markdownToolbar');
+        const contentTextarea = document.getElementById('content');
+        const guideBtn = document.querySelector('.toggle-guide');
+        const guidePanel = document.getElementById('markdownGuide');
+        const isLockedCheckbox = document.getElementById('is_locked');
+        const passwordGroup = document.getElementById('passwordGroup');
+        const encryptionFormGroup = isLockedCheckbox ? isLockedCheckbox.closest('.form-group') : null;
+
+        function setSelectedClass(selectedValue) {
+            // Highlight the chosen type card
+            document.querySelectorAll('.note-type-option').forEach(lbl => {
+                if (lbl.dataset.type === selectedValue) {
+                    lbl.classList.add('selected');
+                } else {
+                    lbl.classList.remove('selected');
+                }
+            });
+        }
+
+        function updateForType() {
+            const selected = document.querySelector('input[name="note_type"]:checked');
+            const type = selected ? selected.value : 'markdown';
+            setSelectedClass(type);
+
+            const isCanvas = type === 'canvas';
+
+            // Content and markdown helpers
+            if (contentGroup) contentGroup.style.display = isCanvas ? 'none' : '';
+            if (markdownToolbar) markdownToolbar.style.display = isCanvas ? 'none' : '';
+            if (guideBtn) guideBtn.style.display = isCanvas ? 'none' : '';
+            if (guidePanel) guidePanel.style.display = 'none'; // always start hidden
+            if (contentTextarea) {
+                // Remove required for canvas so form can submit without text
+                if (isCanvas) {
+                    contentTextarea.removeAttribute('required');
+                } else {
+                    // Only make required when creating (already true in markup), keep explicit for safety
+                    contentTextarea.setAttribute('required', 'required');
+                }
+            }
+
+            // Encryption controls – canvas notes cannot be encrypted
+            if (encryptionFormGroup) encryptionFormGroup.style.display = isCanvas ? 'none' : '';
+            if (passwordGroup) passwordGroup.style.display = 'none';
+            if (isLockedCheckbox) {
+                if (isCanvas) {
+                    isLockedCheckbox.checked = false;
+                    isLockedCheckbox.disabled = true;
+                } else {
+                    isLockedCheckbox.disabled = false;
+                }
+            }
+        }
+
+        noteTypeRadios.forEach(r => r.addEventListener('change', updateForType));
+        // Initialize on load
+        updateForType();
+    })();
+</script>
 {% endblock %}
