@@ -82,12 +82,12 @@ class MarkdownRenderer {
 
                 // Add task-list-item class to li
                 li.classList.add('task-list-item');
-                
+
                 // Add checked class to li if checked
                 if (isChecked) {
                     li.classList.add('checked');
                 }
-                
+
                 // Preserve list indentation styling
                 // Check parent ul/ol elements and apply indentation
                 let parent = li.parentElement;

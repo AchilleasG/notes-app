@@ -27,7 +27,7 @@ class CheckboxHandler {
         this.encryptionSalt = config.encryptionSalt || null;
         this.updateUrl = config.updateUrl;
         this.csrfToken = config.csrfToken || this.getCSRFToken();
-        
+
         // Attach event listeners (only once)
         if (!this.listenerAttached) {
             this.attachCheckboxListeners();
@@ -43,7 +43,7 @@ class CheckboxHandler {
         if (tokenElement) {
             return tokenElement.value;
         }
-        
+
         // Try to get from cookie
         const name = 'csrftoken';
         const cookies = document.cookie.split(';');
@@ -53,7 +53,7 @@ class CheckboxHandler {
                 return cookie.substring(name.length + 1);
             }
         }
-        
+
         return null;
     }
 
@@ -63,7 +63,7 @@ class CheckboxHandler {
     attachCheckboxListeners() {
         // Use event delegation on the document
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('custom-checkbox') && 
+            if (e.target.classList.contains('custom-checkbox') &&
                 e.target.classList.contains('interactive')) {
                 this.handleCheckboxClick(e.target);
             }
@@ -78,26 +78,26 @@ class CheckboxHandler {
         // Get current state and toggle it
         const currentState = checkboxSpan.getAttribute('data-checked') === 'true';
         const newState = !currentState;
-        
+
         // Find the index of this checkbox
         const checkboxIndex = this.findCheckboxIndex(checkboxSpan);
-        
+
         if (checkboxIndex === -1) {
             console.error('Could not find checkbox index');
             return;
         }
-        
+
         // Update the markdown content
         const updatedContent = this.updateCheckboxInMarkdown(this.currentContent, checkboxIndex, newState);
-        
+
         // Save the updated content
         try {
             await this.saveNoteContent(updatedContent);
-            
+
             // Update the visual state only after successful save
             checkboxSpan.setAttribute('data-checked', newState ? 'true' : 'false');
             checkboxSpan.innerHTML = newState ? '☑' : '☐';
-            
+
             // Toggle the "checked" class on the parent li element
             const parentLi = checkboxSpan.closest('li.task-list-item');
             if (parentLi) {
@@ -107,7 +107,7 @@ class CheckboxHandler {
                     parentLi.classList.remove('checked');
                 }
             }
-            
+
             this.currentContent = updatedContent;
             console.log('Checkbox state saved successfully');
         } catch (error) {
@@ -124,13 +124,13 @@ class CheckboxHandler {
     findCheckboxIndex(checkboxSpan) {
         // Find all interactive checkboxes in the document
         const allCheckboxes = document.querySelectorAll('.custom-checkbox.interactive');
-        
+
         for (let i = 0; i < allCheckboxes.length; i++) {
             if (allCheckboxes[i] === checkboxSpan) {
                 return i;
             }
         }
-        
+
         return -1;
     }
 
@@ -146,7 +146,7 @@ class CheckboxHandler {
         const checkboxPattern = /^(\s*)-\s*\[([ xX])\]/gm;
         const matches = [];
         let match;
-        
+
         while ((match = checkboxPattern.exec(markdown)) !== null) {
             matches.push({
                 index: match.index,
@@ -155,19 +155,19 @@ class CheckboxHandler {
                 indentation: match[1]
             });
         }
-        
+
         if (checkboxIndex >= matches.length) {
             console.error('Checkbox index out of range');
             return markdown;
         }
-        
+
         // Update the specific checkbox while preserving indentation
         const targetMatch = matches[checkboxIndex];
         const newCheckbox = targetMatch.indentation + (checked ? '- [x]' : '- [ ]');
-        
+
         const before = markdown.substring(0, targetMatch.index);
         const after = markdown.substring(targetMatch.index + targetMatch.fullMatch.length);
-        
+
         return before + newCheckbox + after;
     }
 
@@ -179,28 +179,28 @@ class CheckboxHandler {
         if (!this.updateUrl) {
             throw new Error('Update URL not configured');
         }
-        
+
         let finalContent = content;
         let encryptedContent = '';
         let salt = this.encryptionSalt;
-        
+
         // Encrypt if needed
         if (this.isEncrypted && this.encryptionPassword) {
             if (typeof window.noteEncryption === 'undefined') {
                 throw new Error('Encryption module not available');
             }
-            
+
             const result = await window.noteEncryption.encrypt(
                 content,
                 this.encryptionPassword,
                 this.encryptionSalt
             );
-            
+
             encryptedContent = result.encrypted;
             salt = result.salt;
             finalContent = ''; // Clear plaintext
         }
-        
+
         // Prepare form data
         const formData = new URLSearchParams();
         formData.append('content', finalContent);
@@ -210,7 +210,7 @@ class CheckboxHandler {
             formData.append('is_locked', 'on');
         }
         formData.append('ajax_update', 'true');
-        
+
         // Send update request
         const response = await fetch(this.updateUrl, {
             method: 'POST',
@@ -220,11 +220,11 @@ class CheckboxHandler {
             },
             body: formData
         });
-        
+
         if (!response.ok) {
             throw new Error(`Update failed: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         if (!data.success) {
             throw new Error('Update failed');
