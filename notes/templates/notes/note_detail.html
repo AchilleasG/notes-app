@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static markdown_extras %}
+
+{% block title %}{{ note.title }} - Personal Notebook{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/note-detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/note-form.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="note-detail-wrapper">
+    <nav class="note-breadcrumbs">
+        {% for crumb in folder_breadcrumbs %}
+            <a href="{{ crumb.url }}">{{ crumb.label }}</a>{% if not forloop.last %}<span>/</span>{% endif %}
+        {% endfor %}
+    </nav>
+
+    <div class="note-header">
+        <div class="note-title-block">
+            <h1>{% if note.is_locked %}🔒 {% endif %}{{ note.title }}</h1>
+            <div class="note-meta-line">
+                {% if is_shared %}
+                    Shared with {{ friend.username }} •
+                {% endif %}
+                Created {{ note.created_at|date:"M d, Y" }} • Updated {{ note.updated_at|date:"M d, Y" }}
+            </div>
+            {% if note.tags.all %}
+            <div class="note-tags">
+                {% for tag in note.tags.all %}
+                <span class="note-tag" style="background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }}">
+                    {{ tag.name }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="quick-actions">
+            <a href="{{ list_url }}" class="btn btn-secondary">← {{ list_label }}</a>
+            {% if not is_shared %}
+            <a href="{% url 'note_create' %}" class="btn btn-secondary">+ New</a>
+            {% else %}
+            <a href="{% url 'shared_note_create' friend.id %}" class="btn btn-secondary">+ New Shared</a>
+            {% endif %}
+            {% if history_url %}
+            <a href="{{ history_url }}" class="btn btn-secondary">📜 History</a>
+            {% endif %}
+            <a href="{{ delete_url }}" class="btn btn-danger">Delete</a>
+        </div>
+    </div>
+
+    <div class="note-layout">
+        <div>
+            <div class="note-preview-panel">
+                {% if note.note_type != 'canvas' %}
+                <button type="button" class="btn btn-secondary raw-toggle-btn" id="toggleRawButton">Show Raw Markdown</button>
+                {% endif %}
+                <div id="noteContent" class="note-content">
+                    {% if note.note_type == 'canvas' %}
+                        {% if is_shared %}
+                            {% include "notes/canvas_editor_partial.html" with note_id=None shared_note_id=note.id elements_json=elements_json csrf_token=csrf_token %}
+                        {% else %}
+                            {% include "notes/canvas_editor_partial.html" with note_id=note.pk shared_note_id=None elements_json=elements_json csrf_token=csrf_token %}
+                        {% endif %}
+                    {% elif note.is_locked %}
+                        <div class="encrypted-placeholder" id="encryptedPlaceholder">
+                            <p>This note is encrypted. Enter the password to view it.</p>
+                            <button class="btn btn-primary" id="showPasswordModal">Unlock</button>
+                        </div>
+                    {% endif %}
+                </div>
+                {% if note.note_type != 'canvas' %}
+                <pre id="rawContentView" class="raw-content"></pre>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-note-list">
+                <h3>{% if is_shared %}Shared Notes{% else %}Other Notes{% endif %}</h3>
+                {% for item in sidebar_notes %}
+                <a href="{% if is_shared %}{% url 'shared_note_view' item.id %}{% else %}{% url 'note_view' item.pk %}{% endif %}" class="sidebar-note-link {% if item.pk == note.pk %}active{% endif %}">
+                    {% if item.is_locked %}🔒 {% endif %}{% if item.note_type == 'canvas' %}🖼️ {% endif %}{{ item.title|truncatechars:50 }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if note.note_type != 'canvas' %}
+        <aside class="inline-editor-panel collapsed" id="inlineEditorPanel">
+            <div class="editor-toggle-label">
+                <span>Inline editor</span>
+                <div class="toggle-buttons">
+                    <button type="button" class="btn btn-secondary" id="inlineEditorToggle">Edit Inline</button>
+                    <button type="button" class="btn btn-secondary" id="inlineEditorClose">Close</button>
+                </div>
+            </div>
+            <form method="post" id="noteForm" action="{{ form_action }}">
+                {% csrf_token %}
+                {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked %}
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </aside>
+        {% endif %}
+    </div>
+</div>
+
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-modal-content">
+        <h3>Enter Password</h3>
+        <input type="password" id="passwordInput" class="password-input" placeholder="Enter password to decrypt note" />
+        <div class="password-buttons">
+            <button class="btn btn-secondary" id="cancelPassword">Cancel</button>
+            <button class="btn btn-primary" id="confirmPassword">Decrypt</button>
+        </div>
+        <div id="passwordError" class="error-message" style="display:none;"></div>
+    </div>
+</div>
+
+{% csrf_token %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{% static 'js/markdown-renderer.js' %}"></script>
+<script src="{% static 'js/checkbox-handler.js' %}"></script>
+<script src="{% static 'js/note-encryption.js' %}"></script>
+<script src="{% static 'js/note-detail.js' %}"></script>
+
+<script>
+window.noteContext = {
+    id: {{ note.pk }},
+    noteType: '{{ note.note_type }}',
+    isLocked: {{ note.is_locked|yesno:'true,false' }},
+    content: '{{ note.content|escapejs }}',
+    initialContent: {% if note.is_locked %}''{% else %}'{{ note.content|escapejs }}'{% endif %},
+    salt: '{{ note.salt }}',
+    checkboxUpdateUrl: '{{ checkbox_update_url }}',
+    encryptionPassword: null,
+};
+
+const passwordModal = document.getElementById('passwordModal');
+const passwordInput = document.getElementById('passwordInput');
+const showPasswordModalBtn = document.getElementById('showPasswordModal');
+const cancelPasswordBtn = document.getElementById('cancelPassword');
+const confirmPasswordBtn = document.getElementById('confirmPassword');
+const passwordError = document.getElementById('passwordError');
+
+function openPasswordModal() {
+    if (!passwordModal) return;
+    passwordModal.classList.remove('hidden');
+    passwordInput.value = '';
+    passwordInput.focus();
+}
+
+function closePasswordModal() {
+    passwordModal.classList.add('hidden');
+    passwordError.style.display = 'none';
+}
+
+async function decryptNote() {
+    const password = passwordInput.value;
+    if (!password) {
+        passwordError.textContent = 'Password is required';
+        passwordError.style.display = 'block';
+        return;
+    }
+    try {
+        const decrypted = await window.noteEncryption.decrypt(
+            window.noteContext.content,
+            password,
+            window.noteContext.salt
+        );
+        document.getElementById('encryptedPlaceholder').style.display = 'none';
+        window.applyDecryptedContent(decrypted, password, window.noteContext.salt);
+        closePasswordModal();
+    } catch (error) {
+        passwordError.textContent = 'Incorrect password. Please try again.';
+        passwordError.style.display = 'block';
+    }
+}
+
+if (showPasswordModalBtn) showPasswordModalBtn.addEventListener('click', openPasswordModal);
+if (cancelPasswordBtn) cancelPasswordBtn.addEventListener('click', closePasswordModal);
+if (confirmPasswordBtn) confirmPasswordBtn.addEventListener('click', decryptNote);
+</script>
+
+{% if note.note_type != 'canvas' %}
+{% include "notes/components/note_form_scripts.html" with note=note current_folder=current_folder folders_json=folders_json view_url=request.path %}
+{% endif %}
+{% endblock %}

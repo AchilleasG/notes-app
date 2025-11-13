@@ -1,0 +1,636 @@
+{% load static %}
+<script src="{% static 'js/folder-tree-selector.js' %}"></script>
+<script>
+(function() {
+    const formElement = document.getElementById('noteForm');
+    if (!formElement) {
+        return;
+    }
+
+    const noteData = {
+        hasNote: Boolean({% if note %}true{% else %}false{% endif %}),
+        id: {% if note %}{{ note.pk }}{% else %}null{% endif %},
+        isLocked: {% if note %}{{ note.is_locked|yesno:'true,false' }}{% else %}false{% endif %},
+        noteType: {% if note %}'{{ note.note_type }}'{% else %}null{% endif %},
+        salt: {% if note and note.salt %}'{{ note.salt }}'{% else %}''{% endif %},
+        content: {% if note %}'{{ note.content|escapejs }}'{% else %}''{% endif %}
+    };
+
+    const folderSelector = (function initializeFolderSelector() {
+        const folders = {{ folders_json|default:'[]'|safe }};
+        let selectedFolderId = {% if note and note.folder %}{{ note.folder.id }}{% elif current_folder %}{{ current_folder.id }}{% else %}null{% endif %};
+        const serverFolderName = {% if note and note.folder %}'{{ note.folder.name|escapejs }}'{% elif current_folder %}'{{ current_folder.name|escapejs }}'{% else %}null{% endif %};
+        const container = document.getElementById('folder-selector-container');
+        const display = document.getElementById('folder-selector-display');
+        const hiddenInput = document.getElementById('folder');
+
+        if (!container || !display || !hiddenInput) {
+            return;
+        }
+
+        function updateDisplay() {
+            if (selectedFolderId) {
+                const folder = folders.find(f => f.id === selectedFolderId);
+                if (folder) {
+                    display.innerHTML = `📁 ${folder.name}`;
+                    hiddenInput.value = selectedFolderId;
+                } else if (serverFolderName) {
+                    display.innerHTML = `📁 ${serverFolderName}`;
+                    hiddenInput.value = selectedFolderId;
+                } else {
+                    display.innerHTML = '🏠 Home (No Folder)';
+                    hiddenInput.value = '';
+                }
+            } else {
+                display.innerHTML = '🏠 Home (No Folder)';
+                hiddenInput.value = '';
+            }
+        }
+
+        container.addEventListener('click', function() {
+            if (typeof createFolderTreeDialog === 'function') {
+                createFolderTreeDialog(
+                    'Select Folder',
+                    folders,
+                    selectedFolderId,
+                    function(newFolderId) {
+                        selectedFolderId = newFolderId;
+                        updateDisplay();
+                    }
+                );
+            } else {
+                alert('Folder tree selector not loaded. Please refresh the page.');
+            }
+        });
+
+        updateDisplay();
+    })();
+
+    {% if not note %}
+    (function initializeNoteTypeSelector() {
+        const noteTypeOptions = document.querySelectorAll('.note-type-option');
+        const contentGroup = document.getElementById('contentGroup');
+        const contentTextarea = document.getElementById('content');
+        const tagsGroup = document.getElementById('tags-container')?.closest('.form-group');
+        const encryptionGroup = document.getElementById('encryptionGroup');
+
+        noteTypeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                noteTypeOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                this.querySelector('input[type="radio"]').checked = true;
+                const selectedType = this.dataset.type;
+                if (selectedType === 'canvas') {
+                    contentGroup.style.display = 'none';
+                    if (tagsGroup) tagsGroup.style.display = 'none';
+                    if (encryptionGroup) encryptionGroup.style.display = 'none';
+                    if (contentTextarea) contentTextarea.required = false;
+                } else {
+                    contentGroup.style.display = 'block';
+                    if (tagsGroup) tagsGroup.style.display = 'block';
+                    if (encryptionGroup) encryptionGroup.style.display = 'block';
+                    if (contentTextarea) contentTextarea.required = true;
+                }
+            });
+        });
+    })();
+    {% endif %}
+
+    window.toggleGuide = function toggleGuide() {
+        const guide = document.getElementById('markdownGuide');
+        const btn = document.querySelector('.toggle-guide');
+        if (!guide || !btn) return;
+        if (guide.style.display === 'none' || guide.style.display === '') {
+            guide.style.display = 'block';
+            btn.innerHTML = '<span id="guideIcon">📖</span> Hide Guide';
+        } else {
+            guide.style.display = 'none';
+            btn.innerHTML = '<span id="guideIcon">📖</span> Markdown Guide';
+        }
+    };
+
+    window.insertChecklistItem = function insertChecklistItem() {
+        const textarea = document.getElementById('content');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const text = textarea.value;
+        let lineStart = start;
+        while (lineStart > 0 && text[lineStart - 1] !== '\n') {
+            lineStart--;
+        }
+        let lineEnd = start;
+        while (lineEnd < text.length && text[lineEnd] !== '\n') {
+            lineEnd++;
+        }
+        const currentLine = text.substring(lineStart, lineEnd);
+        const checkboxPattern = /^(\s*)-\s*\[([ xX])\]\s*/;
+        const match = currentLine.match(checkboxPattern);
+        if (match) {
+            const before = text.substring(0, lineStart);
+            const after = text.substring(lineStart);
+            const newLine = after.replace(checkboxPattern, '$1');
+            textarea.value = before + newLine;
+            const removedLength = match[0].length - match[1].length;
+            const newCursorPos = Math.max(lineStart + match[1].length, start - removedLength);
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        } else {
+            const before = text.substring(0, lineStart);
+            const after = text.substring(lineStart);
+            textarea.value = before + '- [ ] ' + after;
+            const newCursorPos = lineStart + 6;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }
+        textarea.focus();
+    };
+
+    window.insertMarkdown = function insertMarkdown(before, after, placeholder = '') {
+        const textarea = document.getElementById('content');
+        if (!textarea) return;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const selectedText = text.substring(start, end);
+        const beforeText = text.substring(Math.max(0, start - before.length), start);
+        const afterText = text.substring(end, end + after.length);
+        if (beforeText === before && afterText === after && selectedText === placeholder) {
+            textarea.value = text.substring(0, start - before.length) + text.substring(end + after.length);
+            textarea.setSelectionRange(start - before.length, start - before.length);
+            textarea.focus();
+            return;
+        }
+        const newText = before + (selectedText || placeholder) + after;
+        textarea.value = text.substring(0, start) + newText + text.substring(end);
+        const newCursorPos = start + before.length + (selectedText ? selectedText.length : placeholder.length);
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+        textarea.dataset.lastInsert = JSON.stringify({
+            start,
+            before,
+            after,
+            placeholder,
+            cursorPos: newCursorPos
+        });
+    };
+
+    const contentTextarea = document.getElementById('content');
+    if (contentTextarea) {
+        contentTextarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && this.dataset.lastInsert) {
+                try {
+                    const lastInsert = JSON.parse(this.dataset.lastInsert);
+                    const currentPos = this.selectionStart;
+                    if (currentPos === lastInsert.cursorPos && this.selectionStart === this.selectionEnd) {
+                        const text = this.value;
+                        const insertStart = lastInsert.start;
+                        const insertEnd = lastInsert.cursorPos + lastInsert.after.length;
+                        const beforePart = text.substring(insertStart, insertStart + lastInsert.before.length);
+                        const afterPart = text.substring(lastInsert.cursorPos, insertEnd);
+                        if (beforePart === lastInsert.before && afterPart === lastInsert.after) {
+                            e.preventDefault();
+                            this.value = text.substring(0, insertStart) + lastInsert.placeholder + text.substring(insertEnd);
+                            this.setSelectionRange(insertStart + lastInsert.placeholder.length, insertStart + lastInsert.placeholder.length);
+                            delete this.dataset.lastInsert;
+                            return;
+                        }
+                    }
+                } catch (error) {}
+            }
+
+            if (e.key !== 'Backspace' && this.dataset.lastInsert) {
+                delete this.dataset.lastInsert;
+            }
+
+            if (e.key === 'Tab') {
+                const start = this.selectionStart;
+                const text = this.value;
+                const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                let lineEnd = text.indexOf('\n', start);
+                if (lineEnd === -1) lineEnd = text.length;
+                const currentLine = text.substring(lineStart, lineEnd);
+                const checkboxMatch = currentLine.match(/^(\s*)(-\s+\[[ xX]\]\s.*)/);
+                const bulletMatch = currentLine.match(/^(\s*)([-*]\s+.*)/);
+                const match = checkboxMatch || bulletMatch;
+                if (match) {
+                    e.preventDefault();
+                    const indentStep = '    ';
+                    if (e.shiftKey) {
+                        const removal = Math.min(indentStep.length, match[1].length);
+                        const newLine = currentLine.substring(removal);
+                        this.value = text.substring(0, lineStart) + newLine + text.substring(lineEnd);
+                        const adjustment = -removal;
+                        this.setSelectionRange(start + adjustment, start + adjustment);
+                    } else {
+                        const newLine = indentStep + currentLine;
+                        this.value = text.substring(0, lineStart) + newLine + text.substring(lineEnd);
+                        this.setSelectionRange(start + indentStep.length, start + indentStep.length);
+                    }
+                }
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                const start = this.selectionStart;
+                const text = this.value;
+                const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+                const currentLine = text.substring(lineStart, start);
+                const checkboxMatch = currentLine.match(/^(\s*-\s+\[[ xX]\]\s+)/);
+                if (checkboxMatch) {
+                    e.preventDefault();
+                    const indentation = currentLine.match(/^(\s*)/)[1];
+                    if (currentLine.trim() === '- [ ]' || currentLine.trim() === '- [x]' || currentLine.trim() === '- [X]') {
+                        const newText = text.substring(0, lineStart) + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = lineStart;
+                    } else {
+                        const prefix = indentation + '- [ ] ';
+                        const newText = text.substring(0, start) + '\n' + prefix + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = start + 1 + prefix.length;
+                    }
+                    return;
+                }
+                const bulletMatch = currentLine.match(/^(\s*[-*]\s+)/);
+                if (bulletMatch) {
+                    e.preventDefault();
+                    const prefix = bulletMatch[1];
+                    if (currentLine.trim() === '-' || currentLine.trim() === '*') {
+                        const newText = text.substring(0, lineStart) + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = lineStart;
+                    } else {
+                        const newText = text.substring(0, start) + '\n' + prefix + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = start + 1 + prefix.length;
+                    }
+                    return;
+                }
+                const numberedMatch = currentLine.match(/^(\s*)(\d+)\.\s+/);
+                if (numberedMatch) {
+                    e.preventDefault();
+                    const indentation = numberedMatch[1];
+                    const currentNum = parseInt(numberedMatch[2]);
+                    if (currentLine.trim() === `${currentNum}.`) {
+                        const newText = text.substring(0, lineStart) + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = lineStart;
+                    } else {
+                        const nextNum = currentNum + 1;
+                        const prefix = indentation + nextNum + '. ';
+                        const newText = text.substring(0, start) + '\n' + prefix + text.substring(start);
+                        this.value = newText;
+                        this.selectionStart = this.selectionEnd = start + 1 + prefix.length;
+                    }
+                    return;
+                }
+            }
+        });
+    }
+
+    const isLockedCheckbox = document.getElementById('is_locked');
+    if (isLockedCheckbox) {
+        isLockedCheckbox.addEventListener('change', function() {
+            const passwordGroup = document.getElementById('passwordGroup');
+            const passwordInput = document.getElementById('lock_password');
+            if (passwordGroup) passwordGroup.style.display = this.checked ? 'block' : 'none';
+            if (passwordInput) passwordInput.required = this.checked;
+        });
+    }
+
+    class NoteEncryption {
+        constructor() {
+            this.algorithm = 'AES-GCM';
+            this.keyLength = 256;
+            this.ivLength = 12;
+            this.saltLength = 16;
+            this.iterations = 100000;
+            this.passwordCache = new Map();
+        }
+        generateSalt() {
+            return crypto.getRandomValues(new Uint8Array(this.saltLength));
+        }
+        generateIV() {
+            return crypto.getRandomValues(new Uint8Array(this.ivLength));
+        }
+        async deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const passwordKey = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: this.iterations, hash: 'SHA-256' }, passwordKey, { name: this.algorithm, length: this.keyLength }, false, ['encrypt', 'decrypt']);
+        }
+        async encrypt(text, password, existingSalt = null) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const salt = existingSalt ? new Uint8Array(existingSalt.match(/.{2}/g).map(byte => parseInt(byte, 16))) : this.generateSalt();
+            const iv = this.generateIV();
+            const key = await this.deriveKey(password, salt);
+            const encryptedData = await crypto.subtle.encrypt({ name: this.algorithm, iv }, key, data);
+            const result = new Uint8Array(iv.length + encryptedData.byteLength);
+            result.set(iv, 0);
+            result.set(new Uint8Array(encryptedData), iv.length);
+            return {
+                encrypted: btoa(String.fromCharCode(...result)),
+                salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+            };
+        }
+        async decrypt(encryptedText, password, saltHex) {
+            const combined = new Uint8Array(atob(encryptedText).split('').map(c => c.charCodeAt(0)));
+            const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+            let iv, encryptedData;
+            if (combined.length >= this.saltLength + this.ivLength) {
+                const embeddedSalt = combined.slice(0, this.saltLength);
+                const saltMatches = Array.from(embeddedSalt).every((byte, i) => byte === salt[i]);
+                if (saltMatches) {
+                    iv = combined.slice(this.saltLength, this.saltLength + this.ivLength);
+                    encryptedData = combined.slice(this.saltLength + this.ivLength);
+                } else {
+                    iv = combined.slice(0, this.ivLength);
+                    encryptedData = combined.slice(this.ivLength);
+                }
+            } else {
+                iv = combined.slice(0, this.ivLength);
+                encryptedData = combined.slice(this.ivLength);
+            }
+            const key = await this.deriveKey(password, salt);
+            const decryptedData = await crypto.subtle.decrypt({ name: this.algorithm, iv }, key, encryptedData);
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        }
+        cachePassword(noteId, password) {
+            this.passwordCache.set(noteId, password);
+        }
+        getCachedPassword(noteId) {
+            return this.passwordCache.get(noteId);
+        }
+    }
+
+    const noteEncryption = new NoteEncryption();
+
+    formElement.addEventListener('submit', async function(e) {
+        const isLocked = document.getElementById('is_locked');
+        const password = document.getElementById('lock_password');
+        const content = document.getElementById('content');
+        const editingLockedNote = content ? content.dataset.notePassword : null;
+        const existingSalt = content ? content.dataset.noteSalt : null;
+        const needsEncryption = (isLocked && isLocked.checked && password && password.value) || editingLockedNote;
+        if (needsEncryption && content) {
+            e.preventDefault();
+            try {
+                const encryptPassword = (password && password.value) ? password.value : editingLockedNote;
+                const result = await noteEncryption.encrypt(content.value, encryptPassword, existingSalt || null);
+                let encryptedContentField = document.getElementById('encrypted_content');
+                let saltField = document.getElementById('salt_field');
+                let isLockedField = document.getElementById('is_locked_field');
+                if (!encryptedContentField) {
+                    encryptedContentField = document.createElement('input');
+                    encryptedContentField.type = 'hidden';
+                    encryptedContentField.name = 'encrypted_content';
+                    encryptedContentField.id = 'encrypted_content';
+                    this.appendChild(encryptedContentField);
+                }
+                if (!saltField) {
+                    saltField = document.createElement('input');
+                    saltField.type = 'hidden';
+                    saltField.name = 'salt';
+                    saltField.id = 'salt_field';
+                    this.appendChild(saltField);
+                }
+                if (editingLockedNote && !isLocked) {
+                    if (!isLockedField) {
+                        isLockedField = document.createElement('input');
+                        isLockedField.type = 'hidden';
+                        isLockedField.name = 'is_locked';
+                        isLockedField.id = 'is_locked_field';
+                        isLockedField.value = 'on';
+                        this.appendChild(isLockedField);
+                    }
+                }
+                encryptedContentField.value = result.encrypted;
+                saltField.value = result.salt;
+                content.value = '';
+                if (password) {
+                    password.value = '';
+                }
+                this.submit();
+            } catch (error) {
+                alert('Encryption failed: ' + error.message);
+            }
+        }
+    });
+
+    {% if note and note.is_locked %}
+    (async function decryptExistingNote() {
+        const contentField = document.getElementById('content');
+        if (!contentField) return;
+        const noteInfo = {
+            id: {{ note.pk }},
+            content: '{{ note.content|escapejs }}',
+            salt: '{{ note.salt }}'
+        };
+        const cachedPassword = noteEncryption.getCachedPassword(noteInfo.id);
+        if (cachedPassword) {
+            try {
+                const decryptedContent = await noteEncryption.decrypt(noteInfo.content, cachedPassword, noteInfo.salt);
+                contentField.value = decryptedContent;
+                contentField.dataset.notePassword = cachedPassword;
+                contentField.dataset.noteSalt = noteInfo.salt;
+                return;
+            } catch (error) {
+                console.error('Failed to decrypt with cached password:', error);
+            }
+        }
+        const password = prompt('This note is locked. Please enter the password to edit it:');
+        if (password) {
+            try {
+                const decryptedContent = await noteEncryption.decrypt(noteInfo.content, password, noteInfo.salt);
+                contentField.value = decryptedContent;
+                noteEncryption.cachePassword(noteInfo.id, password);
+                contentField.dataset.notePassword = password;
+                contentField.dataset.noteSalt = noteInfo.salt;
+            } catch (error) {
+                alert('Decryption failed. Wrong password?');
+                window.location.href = '{{ view_url }}';
+            }
+        } else {
+            window.location.href = '{{ view_url }}';
+        }
+    })();
+    {% endif %}
+
+    (function initializeTags() {
+        const tagsContainer = document.getElementById('tags-container');
+        const tagsInput = document.getElementById('tags-input');
+        const tagColor = document.getElementById('tag-color');
+        const tagsAutocomplete = document.getElementById('tags-autocomplete');
+        const tagsData = document.getElementById('tags-data');
+        if (!tagsContainer || !tagsInput || !tagsAutocomplete || !tagsData) {
+            return;
+        }
+        let tags = [];
+        let autocompleteResults = [];
+        let selectedIndex = -1;
+        let debounceTimer;
+        {% if note %}
+        {% for tag in note.tags.all %}
+        tags.push({ name: '{{ tag.name|escapejs }}', color: '{{ tag.color }}' });
+        {% endfor %}
+        {% endif %}
+        renderTags();
+
+        function getTextColorForBackground(backgroundColor) {
+            if (!backgroundColor) return '#000000';
+            let color = backgroundColor.replace('#', '');
+            if (color.length === 3) {
+                color = color.split('').map(c => c + c).join('');
+            }
+            if (color.length !== 6) return '#000000';
+            const r = parseInt(color.substring(0, 2), 16);
+            const g = parseInt(color.substring(2, 4), 16);
+            const b = parseInt(color.substring(4, 6), 16);
+            function toLinear(c) {
+                c = c / 255.0;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            }
+            const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+            return luminance > 0.5 ? '#000000' : '#ffffff';
+        }
+
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            tags.forEach((tag, index) => {
+                const badge = document.createElement('span');
+                badge.className = 'tag-badge';
+                badge.style.backgroundColor = tag.color;
+                badge.style.color = getTextColorForBackground(tag.color);
+                badge.innerHTML = `${tag.name}<span class="tag-remove" data-index="${index}">×</span>`;
+                tagsContainer.appendChild(badge);
+            });
+            updateTagsData();
+        }
+
+        tagsContainer.addEventListener('click', (event) => {
+            const removeButton = event.target.closest('.tag-remove');
+            if (!removeButton) return;
+            const index = parseInt(removeButton.getAttribute('data-index'), 10);
+            tags.splice(index, 1);
+            renderTags();
+        });
+
+        function updateTagsData() {
+            tagsData.value = JSON.stringify(tags);
+        }
+
+        function addTag(name, color) {
+            name = name.trim();
+            if (!name) return;
+            const exists = tags.some(t => t.name.toLowerCase() === name.toLowerCase());
+            if (exists) {
+                tagsInput.value = '';
+                return;
+            }
+            tags.push({ name, color });
+            renderTags();
+            tagsInput.value = '';
+            hideAutocomplete();
+        }
+
+        function showAutocomplete(results) {
+            if (results.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+            autocompleteResults = results;
+            selectedIndex = -1;
+            tagsAutocomplete.innerHTML = '';
+            results.forEach((tag, index) => {
+                const item = document.createElement('div');
+                item.className = 'tag-suggestion';
+                item.innerHTML = `
+                    <span class="tag-suggestion-color" style="background-color: ${tag.color}"></span>
+                    <span class="tag-suggestion-name">${tag.name}</span>
+                `;
+                item.addEventListener('click', () => {
+                    addTag(tag.name, tag.color);
+                    tagColor.value = tag.color;
+                });
+                tagsAutocomplete.appendChild(item);
+            });
+            tagsAutocomplete.style.display = 'block';
+        }
+
+        function hideAutocomplete() {
+            tagsAutocomplete.style.display = 'none';
+            autocompleteResults = [];
+            selectedIndex = -1;
+        }
+
+        async function fetchAutocomplete(query) {
+            try {
+                const response = await fetch(`{% url 'tag_autocomplete' %}?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                showAutocomplete(data.results);
+            } catch (error) {
+                console.error('Failed to fetch autocomplete:', error);
+            }
+        }
+
+        tagsInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            clearTimeout(debounceTimer);
+            if (value.trim()) {
+                debounceTimer = setTimeout(() => {
+                    fetchAutocomplete(value.trim());
+                }, 200);
+            } else {
+                hideAutocomplete();
+            }
+        });
+
+        tagsInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const value = tagsInput.value.replace(/,\s*$/, '').trim();
+                if (value) {
+                    if (selectedIndex >= 0 && autocompleteResults[selectedIndex]) {
+                        const selected = autocompleteResults[selectedIndex];
+                        addTag(selected.name, selected.color);
+                        tagColor.value = selected.color;
+                    } else {
+                        addTag(value, tagColor.value);
+                    }
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (autocompleteResults.length > 0) {
+                    selectedIndex = Math.min(selectedIndex + 1, autocompleteResults.length - 1);
+                    updateSelectedSuggestion();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (autocompleteResults.length > 0) {
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelectedSuggestion();
+                }
+            } else if (e.key === 'Escape') {
+                hideAutocomplete();
+            }
+        });
+
+        function updateSelectedSuggestion() {
+            const suggestions = tagsAutocomplete.querySelectorAll('.tag-suggestion');
+            suggestions.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!tagsInput.contains(e.target) && !tagsAutocomplete.contains(e.target)) {
+                hideAutocomplete();
+            }
+        });
+    })();
+})();
+</script>

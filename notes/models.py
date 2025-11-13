@@ -348,6 +348,13 @@ class ChatMessage(models.Model):
         )
 
 
+class ActiveCanvasElementManager(models.Manager):
+    """Default manager that only returns elements that haven't been soft-deleted."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted=False)
+
+
 class CanvasElement(models.Model):
     """An element (textbox, image, shape, or drawing) in a canvas note"""
 
@@ -407,6 +414,10 @@ class CanvasElement(models.Model):
     # Soft-delete flag: mark elements as deleted instead of removing rows so undo is possible
     deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    # Managers
+    objects = ActiveCanvasElementManager()
+    all_objects = models.Manager()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

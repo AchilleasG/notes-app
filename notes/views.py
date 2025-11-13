@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.http import Http404, JsonResponse
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
+from django.urls import reverse
 from .models import (
     Note,
     NoteVersion,
@@ -17,6 +18,7 @@ from .models import (
     SharedFolder,
 )
 from .forms import CustomUserChangeForm, CustomPasswordChangeForm
+from .utils import build_folder_breadcrumbs
 
 
 @login_required
@@ -227,6 +229,8 @@ def note_create(request):
             "folders": folders,
             "folders_json": folders_json,
             "current_folder": current_folder,
+            "is_locked": False,
+            "view_url": reverse("note_list"),
         },
     )
 
@@ -361,6 +365,9 @@ def note_edit(request, pk):
             "user_tags": user_tags,
             "folders": folders,
             "folders_json": folders_json,
+            "current_folder": note.folder,
+            "is_locked": note.is_locked,
+            "view_url": reverse("note_view", args=[note.pk]),
         },
     )
 
@@ -416,28 +423,52 @@ def note_view(request, pk):
     note = get_object_or_404(Note, pk=pk, user=request.user)
 
     # Get all notes for the sidebar
-    all_notes = Note.objects.filter(user=request.user).order_by("-updated_at")
+    sidebar_notes = Note.objects.filter(user=request.user).order_by("-updated_at")
 
-    # For canvas notes, get elements as JSON
+    # Serialize folders for inline editor
+    folders = Folder.objects.filter(user=request.user)
+    import json
+
+    folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in folders
+        ]
+    )
+
+    # Canvas elements
     elements_json = "[]"
     if note.note_type == "canvas":
-        import json
         from .models import CanvasElement
 
-        # Exclude soft-deleted elements
         elements = CanvasElement.objects.filter(note=note, deleted=False)
         elements_json = json.dumps([element.to_dict() for element in elements])
 
-    # Pass note data to client (client will handle decryption if needed)
-    return render(
-        request,
-        "notes/note_view.html",
-        {
-            "note": note,
-            "all_notes": all_notes,
-            "elements_json": elements_json,
-        },
-    )
+    list_base = reverse("note_list")
+    list_url = f"{list_base}?folder={note.folder.id}" if note.folder else f"{list_base}?folder="
+    breadcrumbs = build_folder_breadcrumbs(note.folder, list_base, "Home")
+
+    context = {
+        "note": note,
+        "sidebar_notes": sidebar_notes,
+        "elements_json": elements_json,
+        "folders_json": folders_json,
+        "current_folder": note.folder,
+        "form_action": reverse("note_edit", args=[note.pk]),
+        "delete_url": reverse("note_delete", args=[note.pk]),
+        "history_url": reverse("note_history", args=[note.pk]) if note.note_type != "canvas" else None,
+        "list_url": list_url,
+        "list_label": "All Notes",
+        "folder_breadcrumbs": breadcrumbs,
+        "is_shared": False,
+        "checkbox_update_url": reverse("note_edit", args=[note.pk]),
+    }
+
+    return render(request, "notes/note_detail.html", context)
 
 
 @login_required
@@ -909,11 +940,15 @@ def shared_note_create(request, friend_id):
         request,
         "notes/shared_note_form.html",
         {
+            "shared_note": None,
             "friend": friend,
             "user_tags": user_tags,
             "shared_folders": shared_folders,
             "shared_folders_json": shared_folders_json,
+            "folders_json": shared_folders_json,
             "current_folder": current_folder,
+            "is_locked": False,
+            "view_url": reverse("shared_notes_list", args=[friend.id]),
         },
     )
 
@@ -946,16 +981,50 @@ def shared_note_view(request, note_id):
         elements = CanvasElement.objects.filter(shared_note=shared_note, deleted=False)
         elements_json = json.dumps([element.to_dict() for element in elements])
 
-    return render(
-        request,
-        "notes/shared_note_view.html",
-        {
-            "shared_note": shared_note,
-            "all_notes": all_notes,
-            "friend": friend,
-            "elements_json": elements_json,
-        },
+    # Shared folders for inline editor
+    shared_folders = SharedFolder.objects.filter(
+        Q(user1=request.user, user2=friend) | Q(user1=friend, user2=request.user)
     )
+    import json
+
+    shared_folders_json = json.dumps(
+        [
+            {
+                "id": folder.id,
+                "name": folder.name,
+                "parent_id": folder.parent.id if folder.parent else None,
+            }
+            for folder in shared_folders
+        ]
+    )
+
+    list_base = reverse("shared_notes_list", args=[friend.id])
+    list_url = f"{list_base}?folder={shared_note.folder.id}" if shared_note.folder else list_base
+    breadcrumbs = build_folder_breadcrumbs(
+        shared_note.folder,
+        list_base,
+        f"Shared with {friend.username}",
+    )
+
+    context = {
+        "note": shared_note,
+        "sidebar_notes": all_notes,
+        "friend": friend,
+        "elements_json": elements_json,
+        "folders_json": shared_folders_json,
+        "current_folder": shared_note.folder,
+        "form_action": reverse("shared_note_edit", args=[shared_note.id]),
+        "delete_url": reverse("shared_note_delete", args=[shared_note.id]),
+        "history_url": None,
+        "list_url": list_url,
+        "list_label": f"Shared with {friend.username}",
+        "folder_breadcrumbs": breadcrumbs,
+        "is_shared": True,
+        "checkbox_update_url": reverse("shared_note_edit", args=[shared_note.id]),
+        "friend_id": friend.id,
+    }
+
+    return render(request, "notes/note_detail.html", context)
 
 
 @login_required
@@ -1081,6 +1150,10 @@ def shared_note_edit(request, note_id):
             "friend": friend,
             "shared_folders": shared_folders,
             "shared_folders_json": shared_folders_json,
+            "folders_json": shared_folders_json,
+            "current_folder": shared_note.folder,
+            "is_locked": shared_note.is_locked,
+            "view_url": reverse("shared_note_view", args=[shared_note.id]),
         },
     )
 
@@ -1559,7 +1632,7 @@ def canvas_element_update(request, element_id):
         from .models import CanvasElement
 
         try:
-            element = get_object_or_404(CanvasElement, id=element_id)
+            element = get_object_or_404(CanvasElement.all_objects, id=element_id)
 
             # Verify access
             if element.note:
@@ -1647,7 +1720,7 @@ def canvas_element_delete(request, element_id):
         from .models import CanvasElement
 
         try:
-            element = get_object_or_404(CanvasElement, id=element_id)
+            element = get_object_or_404(CanvasElement.all_objects, id=element_id)
 
             # Verify access
             if element.note:
@@ -1693,7 +1766,7 @@ def canvas_element_undelete(request, element_id):
         from .models import CanvasElement
 
         try:
-            element = get_object_or_404(CanvasElement, id=element_id)
+            element = get_object_or_404(CanvasElement.all_objects, id=element_id)
 
             # Verify access
             if element.note:

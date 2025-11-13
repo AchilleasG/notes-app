@@ -1,0 +1,67 @@
+{% load markdown_extras %}
+{% comment %}
+Reusable note grid for personal and shared note listings.
+Expected context:
+- notes: queryset of Note or SharedNote
+- view_url_name / edit_url_name / delete_url_name: URL pattern names
+- enable_tag_filter: bool for clickable tags
+- show_move_button: bool to show move action
+- empty_message: optional HTML when no notes
+- meta_template: optional override for meta text
+- is_shared: bool flag
+- friend: optional user for shared context
+{% endcomment %}
+
+{% if notes %}
+<div class="notes-grid">
+    {% for note in notes %}
+    <div class="note-card {% if note.is_locked %}locked{% endif %}" onclick="window.location='{% url view_url_name note.pk %}'">
+        <h3>
+            {% if note.is_locked %}<span class="lock-icon">🔒</span>{% endif %}
+            {% if note.note_type == 'canvas' %}<span class="canvas-badge">🖼️</span>{% endif %}
+            <span>{{ note.title }}</span>
+        </h3>
+        {% if note.is_locked %}
+            <p class="locked-message">🔐 Encrypted note - click to unlock</p>
+        {% else %}
+            {% if note.note_type == 'canvas' %}
+                <div class="note-preview">🖼️ Canvas note — open to view/edit the canvas</div>
+            {% else %}
+                <div class="note-preview" data-markdown="{{ note.content|escapejs }}" data-preview="true"></div>
+            {% endif %}
+        {% endif %}
+        {% if note.tags.all %}
+        <div class="note-tags" {% if enable_tag_filter %}onclick="event.stopPropagation()"{% endif %}>
+            {% for tag in note.tags.all %}
+            <span class="note-tag"
+                  style="background-color: {{ tag.color }}; color: {{ tag.color|text_color_for_bg }}"
+                  {% if enable_tag_filter %}onclick="filterByTag('{{ tag.name|escapejs }}')"{% endif %}>
+                {{ tag.name }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="note-meta">
+            {% if is_shared %}
+                Shared with {{ friend.username }} • Created by {{ note.created_by.username }} • Updated {{ note.updated_at|date:"M d, Y" }}
+            {% else %}
+                Updated {{ note.updated_at|date:"M d, Y" }}
+            {% endif %}
+            {% if note.folder %}
+                <br>📁 {{ note.folder.name }}
+            {% endif %}
+        </div>
+        <div class="note-actions" onclick="event.stopPropagation()">
+            <a href="{% url view_url_name note.pk %}" class="btn btn-primary">Open</a>
+            <a href="{% url edit_url_name note.pk %}" class="btn btn-secondary">Edit</a>
+            <a href="{% url delete_url_name note.pk %}" class="btn btn-danger">Delete</a>
+            {% if show_move_button %}
+            <button onclick="event.stopPropagation(); showMoveDialog({{ note.pk }}, {{ note.folder.id|default:'null' }})" class="btn btn-secondary">Move</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+    {{ empty_message|safe }}
+{% endif %}

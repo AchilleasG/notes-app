@@ -1,0 +1,120 @@
+{% comment %}
+Reusable form fields for personal and shared notes.
+Expects variables:
+- note: current note object or None
+- is_shared_form: boolean flag
+- current_folder: optional folder object (for preselecting folder)
+- is_locked: optional boolean override for showing password group
+{% endcomment %}
+
+<div class="form-group">
+    <label for="title">Title</label>
+    <input type="text"
+           id="title"
+           name="title"
+           value="{{ note.title|default:'' }}"
+           required
+           placeholder="Enter note title...">
+</div>
+
+{% if not note %}
+<div class="form-group">
+    <label>Note Type</label>
+    <div class="note-type-selector">
+        <label class="note-type-option selected" data-type="markdown">
+            <input type="radio" name="note_type" value="markdown" checked>
+            <span class="note-type-icon">📝</span>
+            <div class="note-type-title">Markdown Note</div>
+            <div class="note-type-description">Rich text with formatting, lists, and checkboxes</div>
+        </label>
+        <label class="note-type-option" data-type="canvas">
+            <input type="radio" name="note_type" value="canvas">
+            <span class="note-type-icon">🎨</span>
+            <div class="note-type-title">Canvas Note</div>
+            <div class="note-type-description">Freeform canvas with draggable text boxes and images</div>
+        </label>
+    </div>
+</div>
+{% else %}
+<input type="hidden" name="note_type" value="{{ note.note_type }}">
+{% endif %}
+
+<div class="form-group">
+    <label for="folder">Folder</label>
+    <div id="folder-selector-container"
+         class="folder-selector"
+         role="button"
+         aria-haspopup="dialog"
+         aria-expanded="false">
+        <div id="folder-selector-display" class="folder-selector__value">
+            🏠 Home (No Folder)
+        </div>
+        <div id="folder-selector-arrow" class="folder-selector__arrow">▼</div>
+    </div>
+    <input type="hidden" id="folder" name="folder" value="">
+</div>
+
+<div class="form-group" id="contentGroup">
+    <div class="form-group__label-row">
+        <label for="content">Content</label>
+        <button type="button" class="toggle-guide" onclick="toggleGuide()">
+            <span id="guideIcon">📖</span>
+            Markdown Guide
+        </button>
+    </div>
+    <div id="markdownGuide" class="markdown-guide" style="display: none;">
+        <h3>Quick Markdown Reference</h3>
+        <ul>
+            <li><code>**bold**</code> <code>*italic*</code></li>
+            <li><code>- item</code> for bullet lists • <code>1. item</code> for numbered lists</li>
+            <li><code>- [ ] task</code> for checkboxes</li>
+            <li><code>```code```</code> for code blocks</li>
+        </ul>
+    </div>
+    <div class="markdown-toolbar" id="markdownToolbar">
+        <button type="button" onclick="insertMarkdown('**', '**')" title="Bold"><strong>B</strong></button>
+        <button type="button" onclick="insertMarkdown('*', '*')" title="Italic"><em>I</em></button>
+        <button type="button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
+        <button type="button" onclick="insertMarkdown('## ', '')" title="Heading 2">H2</button>
+        <button type="button" onclick="insertMarkdown('- ', '')" title="Bullet point">• List</button>
+        <button type="button" onclick="insertChecklistItem()" title="Checkbox">☐ Task</button>
+        <button type="button" onclick="insertMarkdown('[', '](url)')" title="Link">🔗 Link</button>
+        <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt;</button>
+    </div>
+    <textarea id="content"
+              name="content"
+              class="with-toolbar"
+              {% if not note %}required{% endif %}
+              placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
+</div>
+
+<div class="form-group">
+    <label for="tags-input">Tags</label>
+    <div id="tags-container" class="tags-container"></div>
+    <div class="tags-input-wrapper">
+        <input type="text" id="tags-input" placeholder="Type to add tags... (press Enter or comma)" autocomplete="off">
+        <input type="color" id="tag-color" value="#3b82f6" title="Tag color">
+    </div>
+    <div id="tags-autocomplete" class="tags-autocomplete" style="display: none;"></div>
+    <input type="hidden" id="tags-data" name="tags">
+</div>
+
+{% if not note or not note.is_locked %}
+<div class="form-group" id="encryptionGroup">
+    <label class="checkbox-label">
+        <input type="checkbox" id="is_locked" name="is_locked" {% if is_locked %}checked{% endif %}>
+        <span>🔒 Encrypt this note with a password</span>
+    </label>
+    {% if note and note.note_type == 'canvas' %}
+    <small>Canvas notes cannot be encrypted.</small>
+    {% endif %}
+</div>
+<div class="form-group" id="passwordGroup" style="display: {% if is_locked %}block{% else %}none{% endif %};">
+    <label for="lock_password">Encryption Password</label>
+    <input type="password" id="lock_password" name="lock_password" placeholder="Enter a strong password">
+    <small>This password will encrypt your note. You'll need it to view the note later. Make sure to remember it!</small>
+</div>
+{% endif %}
+
+<input type="hidden" id="encrypted_content" name="encrypted_content">
+<input type="hidden" id="salt" name="salt" value="{% if note %}{{ note.salt }}{% endif %}">
