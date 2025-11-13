@@ -57,17 +57,32 @@
     .note-content ul, .note-content ol {
         margin-left: 20px;
         margin-bottom: 16px;
+        padding-left: 0;
     }
     
-    /* Nested lists - increase indentation for each level */
+    /* Nested lists - minimal vertical spacing */
     .note-content ul ul, .note-content ul ol,
     .note-content ol ul, .note-content ol ol {
-        margin-top: 6px;
-        margin-bottom: 6px;
+        margin-top: 0;
+        margin-bottom: 0;
+        padding-top: 0;
     }
     
     .note-content li {
-        margin-bottom: 6px;
+        margin-bottom: 2px;
+    }
+    
+    /* Even tighter spacing for nested list items */
+    .note-content ul ul li, .note-content ul ol li,
+    .note-content ol ul li, .note-content ol ol li {
+        margin-bottom: 0;
+        margin-top: 0;
+    }
+    
+    /* Remove paragraph margins inside list items */
+    .note-content li p {
+        margin-bottom: 0;
+        margin-top: 0;
     }
     
     /* Task list styling */
