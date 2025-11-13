@@ -50,7 +50,7 @@
 
 .note-layout {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+    grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
     gap: 24px;
 }
 
@@ -60,8 +60,7 @@
     }
 }
 
-.note-preview-panel,
-.inline-editor-panel {
+.note-preview-panel {
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
     border-radius: 12px;
@@ -74,39 +73,6 @@
     color: var(--text-primary);
 }
 
-.raw-content {
-    display: none;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    border-radius: 8px;
-    padding: 16px;
-    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    font-size: 14px;
-    white-space: pre-wrap;
-}
-
-.inline-editor-panel.collapsed form,
-.inline-editor-panel.collapsed .form-actions {
-    display: none;
-}
-
-.inline-editor-panel.collapsed .editor-toggle-label {
-    margin-bottom: 0;
-}
-
-.editor-toggle-label {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.toggle-buttons {
-    display: flex;
-    gap: 8px;
-}
 
 .sidebar-note-list {
     margin-top: 32px;
@@ -133,8 +99,84 @@
     color: #fff;
 }
 
-.raw-toggle-btn {
-    margin-bottom: 12px;
+.note-view-toggle {
+    display: inline-flex;
+    gap: 8px;
+    border: 1px solid var(--border-primary);
+    border-radius: 999px;
+    padding: 4px;
+    margin-bottom: 16px;
+    background: var(--bg-tertiary);
+}
+
+.view-toggle-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.view-toggle-btn.active {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px var(--shadow-sm);
+}
+
+.note-content.hidden {
+    display: none;
+}
+
+.inline-note-form {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-primary);
+}
+
+.inline-note-form .form-group {
+    margin-bottom: 16px;
+}
+
+.inline-note-form .form-actions {
+    text-align: right;
+    margin-top: 12px;
+}
+
+.inline-detail-content-group {
+    display: none;
+}
+
+.inline-detail-content-group.is-visible {
+    display: block;
+}
+
+.note-content ul,
+.note-content ol {
+    margin-left: 1.5rem;
+    padding-left: 0;
+}
+
+.note-content ul ul,
+.note-content ul ol,
+.note-content ol ul,
+.note-content ol ol {
+    margin-left: 1.25rem;
+}
+
+.note-content .task-list-item {
+    list-style: none;
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.note-content .task-list-item .custom-checkbox {
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    font-size: 18px;
 }
 .password-modal {
     position: fixed;

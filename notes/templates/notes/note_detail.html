@@ -53,7 +53,10 @@
         <div>
             <div class="note-preview-panel">
                 {% if note.note_type != 'canvas' %}
-                <button type="button" class="btn btn-secondary raw-toggle-btn" id="toggleRawButton">Show Raw Markdown</button>
+                <div class="note-view-toggle" role="tablist" aria-label="Note view modes">
+                    <button type="button" class="view-toggle-btn active" data-mode="rendered">Rendered View</button>
+                    <button type="button" class="view-toggle-btn" data-mode="markdown">Markdown Editor</button>
+                </div>
                 {% endif %}
                 <div id="noteContent" class="note-content">
                     {% if note.note_type == 'canvas' %}
@@ -70,7 +73,13 @@
                     {% endif %}
                 </div>
                 {% if note.note_type != 'canvas' %}
-                <pre id="rawContentView" class="raw-content"></pre>
+                <form method="post" id="noteForm" action="{{ form_action }}" class="inline-note-form">
+                    {% csrf_token %}
+                    {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked inline_detail_mode=True %}
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
                 {% endif %}
             </div>
 
@@ -84,24 +93,6 @@
             </div>
         </div>
 
-        {% if note.note_type != 'canvas' %}
-        <aside class="inline-editor-panel collapsed" id="inlineEditorPanel">
-            <div class="editor-toggle-label">
-                <span>Inline editor</span>
-                <div class="toggle-buttons">
-                    <button type="button" class="btn btn-secondary" id="inlineEditorToggle">Edit Inline</button>
-                    <button type="button" class="btn btn-secondary" id="inlineEditorClose">Close</button>
-                </div>
-            </div>
-            <form method="post" id="noteForm" action="{{ form_action }}">
-                {% csrf_token %}
-                {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked %}
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </aside>
-        {% endif %}
     </div>
 </div>
 

@@ -7,13 +7,6 @@
         preview.innerHTML = window.markdownRenderer.render(markdown || '', true);
     }
 
-    function updateRawView(markdown) {
-        const rawView = document.getElementById('rawContentView');
-        if (rawView) {
-            rawView.textContent = markdown || '';
-        }
-    }
-
     function initCheckboxHandler(markdown) {
         if (typeof CheckboxHandler === 'undefined' || !window.noteContext) {
             return;
@@ -34,11 +27,9 @@
     document.addEventListener('DOMContentLoaded', () => {
         const context = window.noteContext || {};
         const contentField = document.getElementById('content');
-        const toggleRawButton = document.getElementById('toggleRawButton');
-        const rawView = document.getElementById('rawContentView');
-        const editorPanel = document.getElementById('inlineEditorPanel');
-        const editorToggle = document.getElementById('inlineEditorToggle');
-        const editorClose = document.getElementById('inlineEditorClose');
+        const noteContent = document.getElementById('noteContent');
+        const inlineContentGroup = document.querySelector('.inline-detail-content-group');
+        const viewToggleButtons = document.querySelectorAll('.view-toggle-btn');
 
         const initialContent = context.initialContent || (context.isLocked ? '' : context.content || '');
         if (contentField && context.noteType !== 'canvas' && !context.isLocked) {
@@ -46,16 +37,28 @@
         }
         if (context.noteType !== 'canvas' && !context.isLocked) {
             renderMarkdown(initialContent);
-            updateRawView(initialContent);
             initCheckboxHandler(initialContent);
         }
 
-        if (toggleRawButton && rawView) {
-            toggleRawButton.addEventListener('click', () => {
-                const showing = rawView.style.display === 'block';
-                rawView.style.display = showing ? 'none' : 'block';
-                document.getElementById('noteContent').style.display = showing ? 'block' : 'none';
-                toggleRawButton.textContent = showing ? 'Show Raw Markdown' : 'Show Rendered Markdown';
+        function setViewMode(mode) {
+            if (!inlineContentGroup || !noteContent || !viewToggleButtons.length) {
+                return;
+            }
+            const showEditor = mode === 'markdown';
+            inlineContentGroup.classList.toggle('is-visible', showEditor);
+            noteContent.classList.toggle('hidden', showEditor);
+            viewToggleButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+                btn.setAttribute('aria-pressed', btn.dataset.mode === mode ? 'true' : 'false');
+            });
+        }
+
+        if (viewToggleButtons.length && inlineContentGroup && noteContent) {
+            setViewMode('rendered');
+            viewToggleButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setViewMode(btn.dataset.mode);
+                });
             });
         }
 
@@ -63,22 +66,10 @@
             contentField.addEventListener('input', () => {
                 if (context.noteType === 'canvas') return;
                 const value = contentField.value;
-                updateRawView(value);
                 renderMarkdown(value);
                 if (window.checkboxHandlerInstance) {
                     initCheckboxHandler(value);
                 }
-            });
-        }
-
-        if (editorPanel && editorToggle) {
-            editorToggle.addEventListener('click', () => {
-                editorPanel.classList.toggle('collapsed');
-            });
-        }
-        if (editorPanel && editorClose) {
-            editorClose.addEventListener('click', () => {
-                editorPanel.classList.add('collapsed');
             });
         }
 
@@ -89,9 +80,11 @@
             context.isLocked = false;
             context.encryptionPassword = password;
             context.salt = salt;
-            updateRawView(markdown);
             renderMarkdown(markdown);
             initCheckboxHandler(markdown);
+            if (viewToggleButtons.length && inlineContentGroup && noteContent) {
+                setViewMode('rendered');
+            }
         };
 
         window.updateRenderedMarkdown = renderMarkdown;

@@ -54,7 +54,7 @@ Expects variables:
     <input type="hidden" id="folder" name="folder" value="">
 </div>
 
-<div class="form-group" id="contentGroup">
+<div class="form-group{% if inline_detail_mode %} inline-detail-content-group{% endif %}" id="contentGroup">
     <div class="form-group__label-row">
         <label for="content">Content</label>
         <button type="button" class="toggle-guide" onclick="toggleGuide()">
