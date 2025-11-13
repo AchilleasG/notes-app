@@ -53,6 +53,80 @@
         color: var(--text-primary);
     }
     
+    /* List styling */
+    .note-content ul, .note-content ol {
+        margin-left: 20px;
+        margin-bottom: 16px;
+    }
+    
+    /* Nested lists - increase indentation for each level */
+    .note-content ul ul, .note-content ul ol,
+    .note-content ol ul, .note-content ol ol {
+        margin-top: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .note-content li {
+        margin-bottom: 6px;
+    }
+    
+    /* Task list styling */
+    .note-content .task-list-item {
+        list-style: none;
+        margin-left: 0;
+        position: relative;
+    }
+    
+    /* Handle nested task lists - ensure proper indentation */
+    .note-content ul .task-list-item {
+        margin-left: 0;
+    }
+    
+    .note-content .task-list-item input[type="checkbox"] {
+        margin-right: 8px;
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+    
+    .note-content .task-list-item .custom-checkbox {
+        margin-right: 8px;
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+        flex-shrink: 0;
+        font-size: 18px;
+        line-height: 1;
+        user-select: none;
+    }
+    
+    /* Only apply strikethrough to checked items, not parents */
+    .note-content .task-list-item.checked {
+        text-decoration: line-through;
+        opacity: 0.6;
+    }
+    
+    .note-content .custom-checkbox.interactive {
+        cursor: pointer;
+        transition: transform 0.1s ease, opacity 0.2s ease;
+    }
+    
+    .note-content .custom-checkbox.interactive:hover {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+    
+    .note-content .custom-checkbox.interactive:active {
+        transform: scale(0.95);
+    }
+    
     .encrypted-placeholder {
         background: var(--bg-tertiary);
         border: 2px dashed var(--border-primary);

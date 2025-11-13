@@ -98,6 +98,16 @@ class CheckboxHandler {
             checkboxSpan.setAttribute('data-checked', newState ? 'true' : 'false');
             checkboxSpan.innerHTML = newState ? '☑' : '☐';
             
+            // Toggle the "checked" class on the parent li element
+            const parentLi = checkboxSpan.closest('li.task-list-item');
+            if (parentLi) {
+                if (newState) {
+                    parentLi.classList.add('checked');
+                } else {
+                    parentLi.classList.remove('checked');
+                }
+            }
+            
             this.currentContent = updatedContent;
             console.log('Checkbox state saved successfully');
         } catch (error) {
@@ -132,16 +142,17 @@ class CheckboxHandler {
      * @returns {string} - The updated markdown
      */
     updateCheckboxInMarkdown(markdown, checkboxIndex, checked) {
-        // Find all checkbox patterns in the markdown
-        const checkboxPattern = /-\s*\[([ xX])\]/g;
+        // Find all checkbox patterns in the markdown (including indentation)
+        const checkboxPattern = /^(\s*)-\s*\[([ xX])\]/gm;
         const matches = [];
         let match;
         
         while ((match = checkboxPattern.exec(markdown)) !== null) {
             matches.push({
                 index: match.index,
-                checked: match[1].toLowerCase() === 'x',
-                fullMatch: match[0]
+                checked: match[2].toLowerCase() === 'x',
+                fullMatch: match[0],
+                indentation: match[1]
             });
         }
         
@@ -150,9 +161,9 @@ class CheckboxHandler {
             return markdown;
         }
         
-        // Update the specific checkbox
+        // Update the specific checkbox while preserving indentation
         const targetMatch = matches[checkboxIndex];
-        const newCheckbox = checked ? '- [x]' : '- [ ]';
+        const newCheckbox = targetMatch.indentation + (checked ? '- [x]' : '- [ ]');
         
         const before = markdown.substring(0, targetMatch.index);
         const after = markdown.substring(targetMatch.index + targetMatch.fullMatch.length);

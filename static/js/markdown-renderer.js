@@ -82,6 +82,23 @@ class MarkdownRenderer {
 
                 // Add task-list-item class to li
                 li.classList.add('task-list-item');
+                
+                // Add checked class to li if checked
+                if (isChecked) {
+                    li.classList.add('checked');
+                }
+                
+                // Preserve list indentation styling
+                // Check parent ul/ol elements and apply indentation
+                let parent = li.parentElement;
+                let depth = 0;
+                while (parent && (parent.tagName === 'UL' || parent.tagName === 'OL')) {
+                    depth++;
+                    parent = parent.parentElement;
+                    if (parent && parent.tagName === 'LI') {
+                        parent = parent.parentElement;
+                    }
+                }
 
                 // Replace the original checkbox with custom one
                 checkbox.parentNode.replaceChild(customCheckbox, checkbox);
