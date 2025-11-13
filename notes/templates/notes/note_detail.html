@@ -35,27 +35,38 @@
             </div>
             {% endif %}
         </div>
-        <div class="quick-actions">
-            <a href="{{ list_url }}" class="btn btn-secondary">← {{ list_label }}</a>
-            {% if not is_shared %}
-            <a href="{% url 'note_create' %}" class="btn btn-secondary">+ New</a>
-            {% else %}
-            <a href="{% url 'shared_note_create' friend.id %}" class="btn btn-secondary">+ New Shared</a>
-            {% endif %}
-            {% if history_url %}
-            <a href="{{ history_url }}" class="btn btn-secondary">📜 History</a>
-            {% endif %}
-            <a href="{{ delete_url }}" class="btn btn-danger">Delete</a>
+        <div class="note-header-actions">
+            <button class="btn-icon" id="noteActionsToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="noteActionsPanel">
+                <span class="sr-only">Toggle quick actions</span>
+                ⋯
+            </button>
+            <div class="quick-actions" id="noteActionsPanel">
+                <a href="{{ list_url }}" class="btn btn-secondary">← {{ list_label }}</a>
+                {% if not is_shared %}
+                <a href="{% url 'note_create' %}" class="btn btn-secondary">+ New</a>
+                {% else %}
+                <a href="{% url 'shared_note_create' friend.id %}" class="btn btn-secondary">+ New Shared</a>
+                {% endif %}
+                {% if history_url %}
+                <a href="{{ history_url }}" class="btn btn-secondary">📜 History</a>
+                {% endif %}
+                <a href="{{ delete_url }}" class="btn btn-danger">Delete</a>
+            </div>
         </div>
     </div>
 
     <div class="note-layout">
-        <div>
+        <div class="note-primary-column">
             <div class="note-preview-panel">
                 {% if note.note_type != 'canvas' %}
-                <div class="note-view-toggle" role="tablist" aria-label="Note view modes">
-                    <button type="button" class="view-toggle-btn active" data-mode="rendered">Rendered View</button>
-                    <button type="button" class="view-toggle-btn" data-mode="markdown">Markdown Editor</button>
+                <div class="note-view-toolbar">
+                    <div class="note-view-toggle" role="tablist" aria-label="Note view modes">
+                        <button type="button" class="view-toggle-btn active" data-mode="rendered">Rendered View</button>
+                        <button type="button" class="view-toggle-btn" data-mode="markdown">Markdown Focus</button>
+                    </div>
+                    <button type="button" class="drawer-toggle" data-toggle="editor-drawer" aria-controls="inlineEditorDrawer" aria-expanded="false">
+                        ✏️ Live Edit
+                    </button>
                 </div>
                 {% endif %}
                 <div id="noteContent" class="note-content">
@@ -72,27 +83,39 @@
                         </div>
                     {% endif %}
                 </div>
-                {% if note.note_type != 'canvas' %}
-                <form method="post" id="noteForm" action="{{ form_action }}" class="inline-note-form">
+            </div>
+
+            {% if note.note_type != 'canvas' %}
+            <section class="note-editor-drawer" id="inlineEditorDrawer" aria-hidden="true">
+                <div class="drawer-header">
+                    <div>
+                        <h3>Edit Markdown</h3>
+                        <p>Keep typing while the rendered note stays visible. Switch to Markdown Focus for a full-screen editor.</p>
+                    </div>
+                    <button type="button" class="drawer-toggle" data-toggle="editor-drawer" aria-controls="inlineEditorDrawer" aria-expanded="false">Close</button>
+                </div>
+                <form method="post" id="noteForm" action="{{ form_action }}" class="inline-note-form" data-inline-detail="true">
                     {% csrf_token %}
-                    {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked inline_detail_mode=True %}
+                    {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked %}
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>
-                {% endif %}
-            </div>
+            </section>
+            {% endif %}
+        </div>
 
-            <div class="sidebar-note-list">
-                <h3>{% if is_shared %}Shared Notes{% else %}Other Notes{% endif %}</h3>
+        <aside class="sidebar-note-list" data-collapsible>
+            <button class="sidebar-toggle" type="button" aria-expanded="false" aria-controls="sidebarNotes">{% if is_shared %}Shared Notes{% else %}Other Notes{% endif %}</button>
+            <div id="sidebarNotes" class="sidebar-note-scroll">
+                <h3 class="sidebar-heading">{% if is_shared %}Shared Notes{% else %}Other Notes{% endif %}</h3>
                 {% for item in sidebar_notes %}
                 <a href="{% if is_shared %}{% url 'shared_note_view' item.id %}{% else %}{% url 'note_view' item.pk %}{% endif %}" class="sidebar-note-link {% if item.pk == note.pk %}active{% endif %}">
                     {% if item.is_locked %}🔒 {% endif %}{% if item.note_type == 'canvas' %}🖼️ {% endif %}{{ item.title|truncatechars:50 }}
                 </a>
                 {% endfor %}
             </div>
-        </div>
-
+        </aside>
     </div>
 </div>
 

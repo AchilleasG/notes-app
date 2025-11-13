@@ -7,6 +7,8 @@
         return;
     }
 
+    const inlineDetailMode = formElement.dataset.inlineDetail === 'true';
+
     const noteData = {
         hasNote: Boolean({% if note %}true{% else %}false{% endif %}),
         id: {% if note %}{{ note.pk }}{% else %}null{% endif %},
@@ -417,42 +419,44 @@
     });
 
     {% if note and note.is_locked %}
-    (async function decryptExistingNote() {
-        const contentField = document.getElementById('content');
-        if (!contentField) return;
-        const noteInfo = {
-            id: {{ note.pk }},
-            content: '{{ note.content|escapejs }}',
-            salt: '{{ note.salt }}'
-        };
-        const cachedPassword = noteEncryption.getCachedPassword(noteInfo.id);
-        if (cachedPassword) {
-            try {
-                const decryptedContent = await noteEncryption.decrypt(noteInfo.content, cachedPassword, noteInfo.salt);
-                contentField.value = decryptedContent;
-                contentField.dataset.notePassword = cachedPassword;
-                contentField.dataset.noteSalt = noteInfo.salt;
-                return;
-            } catch (error) {
-                console.error('Failed to decrypt with cached password:', error);
+    if (!inlineDetailMode) {
+        (async function decryptExistingNote() {
+            const contentField = document.getElementById('content');
+            if (!contentField) return;
+            const noteInfo = {
+                id: {{ note.pk }},
+                content: '{{ note.content|escapejs }}',
+                salt: '{{ note.salt }}'
+            };
+            const cachedPassword = noteEncryption.getCachedPassword(noteInfo.id);
+            if (cachedPassword) {
+                try {
+                    const decryptedContent = await noteEncryption.decrypt(noteInfo.content, cachedPassword, noteInfo.salt);
+                    contentField.value = decryptedContent;
+                    contentField.dataset.notePassword = cachedPassword;
+                    contentField.dataset.noteSalt = noteInfo.salt;
+                    return;
+                } catch (error) {
+                    console.error('Failed to decrypt with cached password:', error);
+                }
             }
-        }
-        const password = prompt('This note is locked. Please enter the password to edit it:');
-        if (password) {
-            try {
-                const decryptedContent = await noteEncryption.decrypt(noteInfo.content, password, noteInfo.salt);
-                contentField.value = decryptedContent;
-                noteEncryption.cachePassword(noteInfo.id, password);
-                contentField.dataset.notePassword = password;
-                contentField.dataset.noteSalt = noteInfo.salt;
-            } catch (error) {
-                alert('Decryption failed. Wrong password?');
+            const password = prompt('This note is locked. Please enter the password to edit it:');
+            if (password) {
+                try {
+                    const decryptedContent = await noteEncryption.decrypt(noteInfo.content, password, noteInfo.salt);
+                    contentField.value = decryptedContent;
+                    noteEncryption.cachePassword(noteInfo.id, password);
+                    contentField.dataset.notePassword = password;
+                    contentField.dataset.noteSalt = noteInfo.salt;
+                } catch (error) {
+                    alert('Decryption failed. Wrong password?');
+                    window.location.href = '{{ view_url }}';
+                }
+            } else {
                 window.location.href = '{{ view_url }}';
             }
-        } else {
-            window.location.href = '{{ view_url }}';
-        }
-    })();
+        })();
+    }
     {% endif %}
 
     (function initializeTags() {
