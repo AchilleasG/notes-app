@@ -510,7 +510,7 @@
     }
     
     // Insert or toggle checklist item at the beginning of the current line
-    function insertChecklistItem() {
+    window.insertChecklistItem = function() {
         const textarea = document.getElementById('content');
         const start = textarea.selectionStart;
         const text = textarea.value;
@@ -557,7 +557,7 @@
         }
         
         textarea.focus();
-    }
+    };
     
     // Insert markdown syntax with toggle support
     function insertMarkdown(before, after, placeholder = '') {
@@ -602,6 +602,60 @@
     // Auto-continue lists on Enter key and handle backspace for markdown insertions
     const contentTextarea = document.getElementById('content');
     contentTextarea.addEventListener('keydown', function(e) {
+        // Handle Tab for indenting list items
+        if (e.key === 'Tab') {
+            const start = this.selectionStart;
+            const text = this.value;
+            
+            // Find the start of the current line
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            const lineEnd = text.indexOf('\n', start);
+            const currentLine = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
+            
+            // Check if current line is a list item (checkbox, bullet, or numbered)
+            const listPattern = /^(\s*)(-\s+\[[ xX]\]\s+|-\s+|\*\s+|\d+\.\s+)/;
+            const match = currentLine.match(listPattern);
+            
+            if (match) {
+                e.preventDefault();
+                const currentIndent = match[1];
+                const listMarker = match[2];
+                
+                if (e.shiftKey) {
+                    // Shift+Tab: Decrease indentation
+                    if (currentIndent.length >= 2) {
+                        const newIndent = currentIndent.substring(2); // Remove 2 spaces
+                        const newLine = newIndent + listMarker + currentLine.substring(match[0].length);
+                        const before = text.substring(0, lineStart);
+                        const after = text.substring(lineEnd === -1 ? text.length : lineEnd);
+                        this.value = before + newLine + after;
+                        // Adjust cursor position
+                        const newCursorPos = start - 2;
+                        this.setSelectionRange(newCursorPos, newCursorPos);
+                    }
+                } else {
+                    // Tab: Increase indentation
+                    const newIndent = currentIndent + '  '; // Add 2 spaces
+                    const newLine = newIndent + listMarker + currentLine.substring(match[0].length);
+                    const before = text.substring(0, lineStart);
+                    const after = text.substring(lineEnd === -1 ? text.length : lineEnd);
+                    this.value = before + newLine + after;
+                    // Adjust cursor position
+                    const newCursorPos = start + 2;
+                    this.setSelectionRange(newCursorPos, newCursorPos);
+                }
+                return;
+            } else if (!e.shiftKey) {
+                // Default tab behavior for non-list lines
+                e.preventDefault();
+                const before = text.substring(0, start);
+                const after = text.substring(this.selectionEnd);
+                this.value = before + '  ' + after;
+                this.setSelectionRange(start + 2, start + 2);
+                return;
+            }
+        }
+        
         // Handle Backspace for undoing markdown insertions
         if (e.key === 'Backspace' && this.dataset.lastInsert) {
             try {
