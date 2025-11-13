@@ -27,18 +27,17 @@
     document.addEventListener('DOMContentLoaded', () => {
         const context = window.noteContext || {};
         const contentField = document.getElementById('content');
-        const noteContent = document.getElementById('noteContent');
-        const editorDrawer = document.querySelector('.note-editor-drawer');
+        const inlineEditor = document.querySelector('[data-inline-editor="true"]');
         const viewToggleButtons = document.querySelectorAll('.view-toggle-btn');
-        const drawerToggleButtons = document.querySelectorAll('[data-toggle="editor-drawer"]');
         const actionsToggle = document.getElementById('noteActionsToggle');
         const actionsPanel = document.getElementById('noteActionsPanel');
         const sidebarContainer = document.querySelector('.sidebar-note-list[data-collapsible]');
         const sidebarToggle = sidebarContainer ? sidebarContainer.querySelector('.sidebar-toggle') : null;
         const sidebarPanel = document.getElementById('sidebarNotes');
+        const inlineFormFields = document.getElementById('inlineFormFields');
+        const metaToggle = document.getElementById('metaToggle');
 
-        let manualDrawerOpen = false;
-        let forcedMarkdownMode = false;
+        let currentViewMode = 'rendered';
 
         const initialContent = context.initialContent || (context.isLocked ? '' : context.content || '');
         if (contentField && context.noteType !== 'canvas' && !context.isLocked) {
@@ -49,50 +48,36 @@
             initCheckboxHandler(initialContent);
         }
 
-        function updateDrawerState() {
-            if (!editorDrawer) return;
-            const shouldOpen = forcedMarkdownMode || manualDrawerOpen;
-            editorDrawer.classList.toggle('is-open', shouldOpen);
-            editorDrawer.classList.toggle('is-expanded', forcedMarkdownMode);
-            editorDrawer.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
-            drawerToggleButtons.forEach(btn => {
-                btn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-            });
-        }
-
         function setViewMode(mode) {
-            if (!noteContent || !viewToggleButtons.length) {
+            if (!viewToggleButtons.length) {
                 return;
             }
-            forcedMarkdownMode = mode === 'markdown';
-            noteContent.classList.toggle('hidden', forcedMarkdownMode);
+            currentViewMode = mode === 'markdown' ? 'markdown' : 'rendered';
+            if (inlineEditor) {
+                inlineEditor.setAttribute('data-mode', currentViewMode);
+            }
             viewToggleButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.mode === mode);
-                btn.setAttribute('aria-pressed', btn.dataset.mode === mode ? 'true' : 'false');
+                const isActive = btn.dataset.mode === currentViewMode;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             });
-            updateDrawerState();
         }
 
-        function toggleDrawer() {
-            if (!editorDrawer) return;
-            if (forcedMarkdownMode) {
-                setViewMode('rendered');
-                return;
-            }
-            manualDrawerOpen = !manualDrawerOpen;
-            updateDrawerState();
-        }
-
-        if (drawerToggleButtons.length) {
-            drawerToggleButtons.forEach(btn => btn.addEventListener('click', toggleDrawer));
-        }
-
-        if (viewToggleButtons.length && noteContent) {
+        if (viewToggleButtons.length && inlineEditor) {
             setViewMode('rendered');
             viewToggleButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
                     setViewMode(btn.dataset.mode);
                 });
+            });
+        }
+
+        if (metaToggle && inlineFormFields) {
+            metaToggle.addEventListener('click', () => {
+                const isCollapsed = inlineFormFields.getAttribute('data-meta-collapsed') !== 'false';
+                inlineFormFields.setAttribute('data-meta-collapsed', isCollapsed ? 'false' : 'true');
+                metaToggle.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
+                metaToggle.textContent = isCollapsed ? 'Hide Options' : 'Show Options';
             });
         }
 
@@ -146,10 +131,15 @@
             if (window.noteEncryption && context.id) {
                 window.noteEncryption.cachePassword(context.id, password);
             }
+            const placeholder = document.getElementById('encryptedPlaceholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
             renderMarkdown(markdown);
             initCheckboxHandler(markdown);
-            manualDrawerOpen = true;
-            setViewMode('rendered');
+            if (inlineEditor) {
+                inlineEditor.setAttribute('data-mode', 'rendered');
+            }
         };
 
         window.updateRenderedMarkdown = renderMarkdown;

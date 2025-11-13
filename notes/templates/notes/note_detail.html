@@ -57,51 +57,36 @@
 
     <div class="note-layout">
         <div class="note-primary-column">
+            {% if note.note_type == 'canvas' %}
             <div class="note-preview-panel">
-                {% if note.note_type != 'canvas' %}
+                <div id="noteContent" class="note-content">
+                    {% if is_shared %}
+                        {% include "notes/canvas_editor_partial.html" with note_id=None shared_note_id=note.id elements_json=elements_json csrf_token=csrf_token %}
+                    {% else %}
+                        {% include "notes/canvas_editor_partial.html" with note_id=note.pk shared_note_id=None elements_json=elements_json csrf_token=csrf_token %}
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <form method="post" id="noteForm" action="{{ form_action }}" class="note-inline-form" data-inline-detail="true">
+                {% csrf_token %}
                 <div class="note-view-toolbar">
                     <div class="note-view-toggle" role="tablist" aria-label="Note view modes">
                         <button type="button" class="view-toggle-btn active" data-mode="rendered">Rendered View</button>
                         <button type="button" class="view-toggle-btn" data-mode="markdown">Markdown Focus</button>
                     </div>
-                    <button type="button" class="drawer-toggle" data-toggle="editor-drawer" aria-controls="inlineEditorDrawer" aria-expanded="false">
-                        ✏️ Live Edit
-                    </button>
-                </div>
-                {% endif %}
-                <div id="noteContent" class="note-content">
-                    {% if note.note_type == 'canvas' %}
-                        {% if is_shared %}
-                            {% include "notes/canvas_editor_partial.html" with note_id=None shared_note_id=note.id elements_json=elements_json csrf_token=csrf_token %}
-                        {% else %}
-                            {% include "notes/canvas_editor_partial.html" with note_id=note.pk shared_note_id=None elements_json=elements_json csrf_token=csrf_token %}
-                        {% endif %}
-                    {% elif note.is_locked %}
-                        <div class="encrypted-placeholder" id="encryptedPlaceholder">
-                            <p>This note is encrypted. Enter the password to view it.</p>
-                            <button class="btn btn-primary" id="showPasswordModal">Unlock</button>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if note.note_type != 'canvas' %}
-            <section class="note-editor-drawer" id="inlineEditorDrawer" aria-hidden="true">
-                <div class="drawer-header">
-                    <div>
-                        <h3>Edit Markdown</h3>
-                        <p>Keep typing while the rendered note stays visible. Switch to Markdown Focus for a full-screen editor.</p>
+                    <div class="inline-toolbar-actions">
+                        <button type="button" class="inline-meta-toggle" id="metaToggle" aria-expanded="false" aria-controls="inlineFormFields">Show Options</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
                     </div>
-                    <button type="button" class="drawer-toggle" data-toggle="editor-drawer" aria-controls="inlineEditorDrawer" aria-expanded="false">Close</button>
                 </div>
-                <form method="post" id="noteForm" action="{{ form_action }}" class="inline-note-form" data-inline-detail="true">
-                    {% csrf_token %}
-                    {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked %}
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
-                </form>
-            </section>
+                <div class="inline-form-fields" id="inlineFormFields" data-meta-collapsed="true">
+                    {% include "notes/components/note_form_fields.html" with note=note current_folder=current_folder is_locked=note.is_locked inline_detail=True %}
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
             {% endif %}
         </div>
 
@@ -182,7 +167,10 @@ async function decryptNote() {
             password,
             window.noteContext.salt
         );
-        document.getElementById('encryptedPlaceholder').style.display = 'none';
+        const placeholder = document.getElementById('encryptedPlaceholder');
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
         window.applyDecryptedContent(decrypted, password, window.noteContext.salt);
         closePasswordModal();
     } catch (error) {

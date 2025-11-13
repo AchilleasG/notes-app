@@ -7,7 +7,7 @@ Expects variables:
 - is_locked: optional boolean override for showing password group
 {% endcomment %}
 
-<div class="form-group">
+<div class="form-group" data-field="title">
     <label for="title">Title</label>
     <input type="text"
            id="title"
@@ -18,7 +18,7 @@ Expects variables:
 </div>
 
 {% if not note %}
-<div class="form-group">
+<div class="form-group" data-field="note_type">
     <label>Note Type</label>
     <div class="note-type-selector">
         <label class="note-type-option selected" data-type="markdown">
@@ -39,7 +39,7 @@ Expects variables:
 <input type="hidden" name="note_type" value="{{ note.note_type }}">
 {% endif %}
 
-<div class="form-group">
+<div class="form-group" data-field="folder">
     <label for="folder">Folder</label>
     <div id="folder-selector-container"
          class="folder-selector"
@@ -54,7 +54,7 @@ Expects variables:
     <input type="hidden" id="folder" name="folder" value="">
 </div>
 
-<div class="form-group" id="contentGroup">
+<div class="form-group note-live-editor" id="contentGroup" data-field="content" data-mode="rendered" {% if inline_detail %}data-inline-detail="true" data-inline-editor="true"{% endif %}>
     <div class="form-group__label-row">
         <label for="content">Content</label>
         <button type="button" class="toggle-guide" onclick="toggleGuide()">
@@ -81,14 +81,25 @@ Expects variables:
         <button type="button" onclick="insertMarkdown('[', '](url)')" title="Link">🔗 Link</button>
         <button type="button" onclick="insertMarkdown('`', '`')" title="Code">&lt;/&gt;</button>
     </div>
-    <textarea id="content"
-              name="content"
-              class="with-toolbar"
-              {% if not note %}required{% endif %}
-              placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
+    <div class="note-live-stack">
+        <textarea id="content"
+                  name="content"
+                  class="with-toolbar"
+                  {% if not note %}required{% endif %}
+                  placeholder="Write your note in Markdown format...">{% if note and not note.is_locked %}{{ note.content }}{% endif %}</textarea>
+        {% if inline_detail %}
+        <div id="noteContent" class="note-live-preview" aria-live="polite" aria-label="Rendered Markdown preview"></div>
+        {% if note and note.is_locked %}
+        <div class="encrypted-placeholder" id="encryptedPlaceholder">
+            <p>This note is encrypted. Enter the password to view it.</p>
+            <button class="btn btn-primary" id="showPasswordModal" type="button">Unlock</button>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
 </div>
 
-<div class="form-group">
+<div class="form-group" data-field="tags">
     <label for="tags-input">Tags</label>
     <div id="tags-container" class="tags-container"></div>
     <div class="tags-input-wrapper">
@@ -100,7 +111,7 @@ Expects variables:
 </div>
 
 {% if not note or not note.is_locked %}
-<div class="form-group" id="encryptionGroup">
+<div class="form-group" id="encryptionGroup" data-field="encryption">
     <label class="checkbox-label">
         <input type="checkbox" id="is_locked" name="is_locked" {% if is_locked %}checked{% endif %}>
         <span>🔒 Encrypt this note with a password</span>
@@ -109,7 +120,7 @@ Expects variables:
     <small>Canvas notes cannot be encrypted.</small>
     {% endif %}
 </div>
-<div class="form-group" id="passwordGroup" style="display: {% if is_locked %}block{% else %}none{% endif %};">
+<div class="form-group" id="passwordGroup" data-field="password" style="display: {% if is_locked %}block{% else %}none{% endif %};">
     <label for="lock_password">Encryption Password</label>
     <input type="password" id="lock_password" name="lock_password" placeholder="Enter a strong password">
     <small>This password will encrypt your note. You'll need it to view the note later. Make sure to remember it!</small>
