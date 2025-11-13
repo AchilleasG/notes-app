@@ -428,6 +428,21 @@ def note_view(request, pk):
         elements = CanvasElement.objects.filter(note=note, deleted=False)
         elements_json = json.dumps([element.to_dict() for element in elements])
 
+    # Build breadcrumb path
+    breadcrumb_path = []
+    if note.folder:
+        current_folder = note.folder
+        while current_folder:
+            breadcrumb_path.insert(
+                0,
+                {
+                    "name": current_folder.name,
+                    "id": current_folder.id,
+                    "url": f"/?folder={current_folder.id}",
+                },
+            )
+            current_folder = current_folder.parent
+
     # Pass note data to client (client will handle decryption if needed)
     return render(
         request,
@@ -436,6 +451,7 @@ def note_view(request, pk):
             "note": note,
             "all_notes": all_notes,
             "elements_json": elements_json,
+            "breadcrumb_path": breadcrumb_path,
         },
     )
 
@@ -946,6 +962,21 @@ def shared_note_view(request, note_id):
         elements = CanvasElement.objects.filter(shared_note=shared_note, deleted=False)
         elements_json = json.dumps([element.to_dict() for element in elements])
 
+    # Build breadcrumb path
+    breadcrumb_path = []
+    if shared_note.folder:
+        current_folder = shared_note.folder
+        while current_folder:
+            breadcrumb_path.insert(
+                0,
+                {
+                    "name": current_folder.name,
+                    "id": current_folder.id,
+                    "url": f"/friends/{friend.id}/shared-notes/?folder={current_folder.id}",
+                },
+            )
+            current_folder = current_folder.parent
+
     return render(
         request,
         "notes/shared_note_view.html",
@@ -954,6 +985,7 @@ def shared_note_view(request, note_id):
             "all_notes": all_notes,
             "friend": friend,
             "elements_json": elements_json,
+            "breadcrumb_path": breadcrumb_path,
         },
     )
 
