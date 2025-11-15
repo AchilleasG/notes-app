@@ -12,6 +12,42 @@
         padding: 20px 16px;
     }
     
+    /* Breadcrumb Navigation */
+    .breadcrumb-nav {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .breadcrumb-item {
+        color: var(--accent-primary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    
+    .breadcrumb-item:hover {
+        color: var(--accent-hover);
+        text-decoration: underline;
+    }
+    
+    .breadcrumb-current {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .breadcrumb-separator {
+        color: var(--text-tertiary);
+        user-select: none;
+    }
+    
     .note-header {
         display: flex;
         justify-content: space-between;
@@ -201,6 +237,17 @@
 
 {% block content %}
 <div class="note-view-container">
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumb-nav" aria-label="breadcrumb">
+        <a href="{% url 'shared_notes_list' friend.id %}" class="breadcrumb-item">Home</a>
+        {% for folder in breadcrumb_path %}
+            <span class="breadcrumb-separator">/</span>
+            <a href="{{ folder.url }}" class="breadcrumb-item">{{ folder.name }}</a>
+        {% endfor %}
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item breadcrumb-current">{{ shared_note.title|truncatechars:30 }}</span>
+    </nav>
+    
     <div class="note-header">
         <h1>{{ shared_note.title }}</h1>
         <div class="note-actions">

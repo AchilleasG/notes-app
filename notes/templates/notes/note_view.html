@@ -33,6 +33,42 @@
         }
     }
     
+    /* Breadcrumb Navigation */
+    .breadcrumb-nav {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .breadcrumb-item {
+        color: var(--accent-primary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    
+    .breadcrumb-item:hover {
+        color: var(--accent-hover);
+        text-decoration: underline;
+    }
+    
+    .breadcrumb-current {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .breadcrumb-separator {
+        color: var(--text-tertiary);
+        user-select: none;
+    }
+    
     /* Notes dropdown for mobile navigation */
     .notes-nav {
         margin-bottom: 20px;
@@ -536,6 +572,17 @@
         <a href="{% url 'note_edit' note.pk %}" class="btn btn-primary">Edit</a>
         <a href="{% url 'note_delete' note.pk %}" class="btn btn-danger">Delete</a>
     </div>
+    
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumb-nav" aria-label="breadcrumb">
+        <a href="{% url 'note_list' %}" class="breadcrumb-item">Home</a>
+        {% for folder in breadcrumb_path %}
+            <span class="breadcrumb-separator">/</span>
+            <a href="{{ folder.url }}" class="breadcrumb-item">{{ folder.name }}</a>
+        {% endfor %}
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item breadcrumb-current">{{ note.title|truncatechars:30 }}</span>
+    </nav>
     
     <!-- Navigation dropdown for switching between notes -->
     <div class="notes-nav">
